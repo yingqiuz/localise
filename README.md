@@ -1,6 +1,6 @@
 # python-localise
 
-python-localise is a Python package developed to assist in the process of localisation.
+python-localise is a Python package developed to ...
 
 ## Installation
 
