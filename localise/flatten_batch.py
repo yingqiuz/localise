@@ -98,14 +98,14 @@ class FlattenedCRFBatch:
         adj (Adjacency): Adjacency information for the input data.
         n (int): Number of samples in the input data.
         d (int): Number of features in the input data.
-        γ (numpy.array): Gamma parameter for the Radial Basis Function (RBF) kernel.
+        gamma (numpy.array): Gamma parameter for the Radial Basis Function (RBF) kernel.
         f (scipy.sparse.csr_matrix): Calculated kernel for the input data.
 
     Methods:
-        construct_kernel(X, adj, γ): Constructs the kernel for the input data.
+        construct_kernel(X, adj, gamma): Constructs the kernel for the input data.
     """
 
-    def __init__(self, X, adj, K=2, γ=None):
+    def __init__(self, X, adj, K=2, gamma=None):
         """
         Initializes an instance of FlattenedCRFBatch.
 
@@ -113,39 +113,39 @@ class FlattenedCRFBatch:
             X (numpy.array): Input data.
             adj (Adjacency): Adjacency information for the input data.
             K (int, optional): Number of CRFs in the batch. Defaults to 2.
-            γ (numpy.array, optional): Gamma parameter for the Radial Basis Function (RBF) kernel. Defaults to a numpy array with value 0.
+            gamma (numpy.array, optional): Gamma parameter for the Radial Basis Function (RBF) kernel. Defaults to a numpy array with value 0.
         """
         self.K = K
         self.X = X
         self.adj = adj
         self.n = X.shape[1]
         self.d = X.shape[0]
-        self.γ = γ if γ is not None else np.array([0])
-        if not isinstance(self.γ, np.ndarray):
-            self.γ = np.array([self.γ], dtype=X.dtype)
-        self.f = self.construct_kernel(self.X, self.adj, self.γ)
+        self.gamma = gamma if gamma is not None else np.array([0])
+        if not isinstance(self.gamma, np.ndarray):
+            self.gamma = np.array([self.gamma], dtype=X.dtype)
+        self.f = self.construct_kernel(self.X, self.adj, self.gamma)
 
-    def construct_kernel(self, X, adj, γ):
+    def construct_kernel(self, X, adj, gamma):
         """
         Constructs the kernel for the input data.
 
         Args:
             X (numpy.array): Input data.
             adj (Adjacency): Adjacency information for the input data.
-            γ (numpy.array): Gamma parameter for the Radial Basis Function (RBF) kernel.
+            gamma (numpy.array): Gamma parameter for the Radial Basis Function (RBF) kernel.
 
         Returns:
             scipy.sparse.csr_matrix: Kernel for the input data.
         """
-        if γ.ndim > 0:
-            return [self.construct_kernel(X, adj, el) for el in γ]
+        if gamma.ndim > 0:
+            return [self.construct_kernel(X, adj, el) for el in gamma]
         else:
-            if γ == 0:
+            if gamma == 0:
                 return csr_matrix((np.ones(len(adj.inds1)), (adj.inds1, adj.inds2)), shape=(adj.n, adj.n))
             else:
                 indices = [(i, j) for i, j in zip(adj.inds1, adj.inds2) if i < j]
                 inds1, inds2 = zip(*indices)
-                vals = [np.exp(-np.sum((X[:, i] - X[:, j]) ** 2) * γ) for i, j in indices]
+                vals = [np.exp(-np.sum((X[:, i] - X[:, j]) ** 2) * gamma) for i, j in indices]
                 f = csr_matrix((vals, (inds1, inds2)), shape=(adj.n, adj.n))
                 return f + f.T
 
@@ -159,14 +159,14 @@ class FlattenedCRFBatchTensor:
         adj (Adjacency): Adjacency information for the input data.
         n (int): Number of samples in the input data.
         d (int): Number of features in the input data.
-        γ (torch.Tensor): Gamma parameter for the Radial Basis Function (RBF) kernel.
+        gamma (torch.Tensor): Gamma parameter for the Radial Basis Function (RBF) kernel.
         f (torch.sparse_coo_tensor): Calculated kernel for the input data.
 
     Methods:
-        construct_kernel(X, adj, γ): Constructs the kernel for the input data.
+        construct_kernel(X, adj, gamma): Constructs the kernel for the input data.
     """
 
-    def __init__(self, X, adj, K=2, γ=None):
+    def __init__(self, X, adj, K=2, gamma=None):
         """
         Initializes a new instance of FlattenedCRFBatchTorch.
 
@@ -174,35 +174,35 @@ class FlattenedCRFBatchTensor:
             X (torch.Tensor): Input data.
             adj (Adjacency): Adjacency information for the input data.
             K (int, optional): Number of CRFs in the batch. Defaults to 2.
-            γ (torch.Tensor, optional): Gamma parameter for the Radial Basis Function (RBF) kernel. If not specified, it defaults to a tensor with value 0 on the same device and with the same datatype as X.
+            gamma (torch.Tensor, optional): Gamma parameter for the Radial Basis Function (RBF) kernel. If not specified, it defaults to a tensor with value 0 on the same device and with the same datatype as X.
         """
         self.K = K
         self.X = X
         self.adj = adj
         self.n = X.shape[1]
         self.d = X.shape[0]
-        self.γ = γ if γ is not None else torch.tensor([0], device=X.device, dtype=X.dtype)
-        if not isinstance(self.γ, torch.Tensor):
-            self.γ = torch.tensor([self.γ], device=X.device, dtype=X.dtype)
-        self.f = self.construct_kernel(self.X, self.adj, self.γ)
+        self.gamma = gamma.to(X) if gamma is not None else torch.tensor([0], device=X.device, dtype=X.dtype)
+        if not isinstance(self.gamma, torch.Tensor):
+            self.gamma = torch.tensor([self.gamma], device=X.device, dtype=X.dtype)
+        self.f = self.construct_kernel(self.X, self.adj, self.gamma)
 
-    def construct_kernel(self, X, adj, γ):
+    def construct_kernel(self, X, adj, gamma):
         """
         Constructs the kernel for the input data.
 
         Args:
             X (torch.Tensor): Input data.
             adj (Adjacency): Adjacency information for the input data.
-            γ (torch.Tensor): Gamma parameter for the Radial Basis Function (RBF) kernel.
+            gamma (torch.Tensor): Gamma parameter for the Radial Basis Function (RBF) kernel.
 
         Returns:
             torch.sparse_coo_tensor: Kernel for the input data.
         """
-        if γ.dim() > 0:
-            return torch.stack([self.construct_kernel(X, adj, el.item()) for el in γ])
+        if gamma.dim() > 0:
+            return torch.stack([self.construct_kernel(X, adj, el.item()) for el in gamma])
         else:
             indices = torch.tensor([adj.inds1, adj.inds2], device=X.device)
-            if γ == 0:
+            if gamma == 0:
                 values = torch.ones(len(adj.inds1), device=X.device, dtype=X.dtype)
                 size = adj.n, adj.n
                 return torch.sparse_coo_tensor(indices, values, size)
@@ -210,6 +210,6 @@ class FlattenedCRFBatchTensor:
                 indices_mask = adj.inds1 < adj.inds2
                 inds1 = torch.tensor(adj.inds1[indices_mask], device=X.device)
                 inds2 = torch.tensor(adj.inds2[indices_mask], device=X.device)
-                vals = torch.exp(-torch.sum((X[:, inds1] - X[:, inds2]) ** 2, dim=0) * γ)
+                vals = torch.exp(-torch.sum((X[:, inds1] - X[:, inds2]) ** 2, dim=0) * gamma)
                 f = torch.sparse_coo_tensor(torch.stack([inds1, inds2]), vals, (adj.n, adj.n))
                 return f + f.coalesce().t().coalesce()
