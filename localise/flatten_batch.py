@@ -118,8 +118,8 @@ class FlattenedCRFBatch:
         self.K = K
         self.X = X
         self.adj = adj
-        self.n = X.shape[1]
-        self.d = X.shape[0]
+        self.n = X.shape[0]
+        self.d = X.shape[1]
         self.gamma = gamma if gamma is not None else np.array([0])
         if not isinstance(self.gamma, np.ndarray):
             self.gamma = np.array([self.gamma], dtype=X.dtype)
@@ -145,7 +145,7 @@ class FlattenedCRFBatch:
             else:
                 indices = [(i, j) for i, j in zip(adj.inds1, adj.inds2) if i < j]
                 inds1, inds2 = zip(*indices)
-                vals = [np.exp(-np.sum((X[:, i] - X[:, j]) ** 2) * gamma) for i, j in indices]
+                vals = [np.exp(-np.sum((X[i, :] - X[j, :]) ** 2, axis=1) * gamma) for i, j in indices]
                 f = csr_matrix((vals, (inds1, inds2)), shape=(adj.n, adj.n))
                 return f + f.T
 
@@ -179,8 +179,8 @@ class FlattenedCRFBatchTensor:
         self.K = K
         self.X = X
         self.adj = adj
-        self.n = X.shape[1]
-        self.d = X.shape[0]
+        self.n = X.shape[0]
+        self.d = X.shape[1]
         self.gamma = gamma.to(X) if gamma is not None else torch.tensor([0], device=X.device, dtype=X.dtype)
         if not isinstance(self.gamma, torch.Tensor):
             self.gamma = torch.tensor([self.gamma], device=X.device, dtype=X.dtype)
@@ -198,7 +198,7 @@ class FlattenedCRFBatchTensor:
         Returns:
             torch.sparse_coo_tensor: Kernel for the input data.
         """
-        if gamma.dim() > 0:
+        if type(gamma) is not float:
             return torch.stack([self.construct_kernel(X, adj, el.item()) for el in gamma])
         else:
             indices = torch.tensor([adj.inds1, adj.inds2], device=X.device)
@@ -207,9 +207,11 @@ class FlattenedCRFBatchTensor:
                 size = adj.n, adj.n
                 return torch.sparse_coo_tensor(indices, values, size)
             else:
-                indices_mask = adj.inds1 < adj.inds2
-                inds1 = torch.tensor(adj.inds1[indices_mask], device=X.device)
-                inds2 = torch.tensor(adj.inds2[indices_mask], device=X.device)
-                vals = torch.exp(-torch.sum((X[:, inds1] - X[:, inds2]) ** 2, dim=0) * gamma)
-                f = torch.sparse_coo_tensor(torch.stack([inds1, inds2]), vals, (adj.n, adj.n))
-                return f + f.coalesce().t().coalesce()
+                #indices_mask = adj.inds1 < adj.inds2
+                #print(indices_mask)
+                #inds1 = torch.tensor(adj.inds1[indices_mask], device=X.device)
+                #inds2 = torch.tensor(adj.inds2[indices_mask], device=X.device)
+                vals = torch.exp(-torch.sum((X[adj.inds1, :] - X[adj.inds2, :]) ** 2, dim=1) * gamma)
+                #print(inds1)
+                f = torch.sparse_coo_tensor(indices, vals, (adj.n, adj.n))
+                return f #+ f.coalesce().t().coalesce()

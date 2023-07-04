@@ -108,7 +108,9 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
     
     # maximum tract density normalised to 1
     if normalise:
-        X /= np.max(X, axis=1, keepdims=True)
+        maxX = np.max(X, axis=1)
+        maxX[ maxX==0 ] = 1
+        X /= maxX[:, None]
     
     # replace np.nan and np.inf with 0
     X = np.nan_to_num(X)
@@ -116,7 +118,7 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
     if demean:
         X -= np.mean(X, axis=1, keepdims=True)
     
-    return FlattenedCRFBatchTensor(torch.from_numpy(X).float(), Adjacency(inds1, inds2, n), K=2, gamma=torch.from_numpy(gamma).float())
+    return FlattenedCRFBatchTensor(torch.from_numpy(X.T).float(), Adjacency(inds1, inds2, n), K=2, gamma=torch.from_numpy(gamma).float())
 
 def load_labels(subject, mask_name, label_name):
     """
@@ -147,4 +149,4 @@ def load_labels(subject, mask_name, label_name):
     index = np.where(mask > 0)
     
     y = np.asarray(nib.load(os.path.join(subject, label_name)).get_fdata()[index] > 0, dtype=np.int32)
-    return torch.from_numpy(np.vstack((1 - y, y))).float()
+    return torch.from_numpy(np.vstack((1 - y, y)).T).float()

@@ -1,3 +1,6 @@
 numpy
 torch
 joblib
+nibabel
+scipy
+pytest
