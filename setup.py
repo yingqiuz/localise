@@ -8,10 +8,10 @@ with open('requirements.txt','rt') as f:
 setup(
     name='python-localise',
     version='0.1.0',  # Update the version number for new releases
-    url='https://github.com/yingqiuz/python-localise',
+    url='https://git.fmrib.ox.ac.uk/yqzheng1/python-localise',
     license='MIT',
     author='Ying-Qiu Zheng',
-    author_email='yingqiuz12fdu@gmail.com',
+    author_email='ying-qiu.zheng@ndcn.ox.ac.uk',
     description='A Python package for localisation',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
