@@ -4,14 +4,11 @@ from torch import optim
 import time
 from functools import partial
 from torch.nn import Linear
-from flatten_forward import FlexibleClassifier, MLP
+from localise.flatten_forward import FlexibleClassifier, MLP
 
 
 def train_loop(data, model, loss_fn, optimizer, lambda_l1, lambda_l2, print_freq=10):
     size = len(data)
-    
-    # Compute penalty parameters before the loop
-    layer_weights = torch.stack([x for x in model.layer.parameters() if x.dim() > 1])
 
     # Set the model to training mode
     model.train()
@@ -19,6 +16,9 @@ def train_loop(data, model, loss_fn, optimizer, lambda_l1, lambda_l2, print_freq
         # Compute prediction and loss
         pred = model(X)
         loss = loss_fn(pred, y)
+
+        # Compute penalty parameters before the loop
+        layer_weights = torch.stack([x for x in model.layer.parameters() if x.dim() > 1])
 
         # Add L1 and L2 regularization
         l1_penalty = lambda_l1 * torch.norm(layer_weights, 1)
@@ -46,7 +46,7 @@ def test_loop(data, model, loss_fn):
     # Evaluating the model with torch.no_grad() ensures that no gradients are computed during test mode
     # also serves to reduce unnecessary gradient computations and memory usage for tensors with requires_grad=True
     with torch.no_grad():
-        for X, y in data:
+        for _, (X, y) in enumerate(data):
             pred = model(X)
             test_loss += loss_fn(pred, y).item()
             #correct += (pred.argmax(1) == y).type(torch.float).sum().item()
