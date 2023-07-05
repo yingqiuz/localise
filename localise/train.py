@@ -1,5 +1,4 @@
 import torch
-import random
 from torch import nn
 from torch import optim
 from torch.nn import Linear
