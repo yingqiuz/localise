@@ -1,5 +1,5 @@
 import torch
-from torch.nn import Module, Parameter, Linear
+from torch.nn import Module, Parameter, Linear, ReLU
 from torch.nn.functional import relu, softmax
 
 
@@ -38,6 +38,20 @@ class FlexibleClassifier(Module):
             h = y - h @ self.compatibility
         return softmax(h, dim=1)
 
+
+class MLP(Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(MLP, self).__init__()
+        self.layer1 = Linear(input_dim, hidden_dim)
+        self.layer2 = Linear(hidden_dim, output_dim)
+        self.relu = ReLU()
+
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.relu(x)
+        x = self.layer2(x)
+        return x
+    
 
 class FlexibleCRF(Module):
     def __init__(self, layer, n_classes=2, n_kernels=1, is_crf=False, n_iter=3):
