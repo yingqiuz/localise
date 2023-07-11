@@ -9,8 +9,8 @@ from torch.utils.data import Dataset
 
 DEFAULT_TARGET_LIST = [...]  # fill this with your default target list
 
-def load_features(subject, mask_name, target_path=None, data=None, atlas=None, 
-                  target_list=DEFAULT_TARGET_LIST, demean=True,
+def load_features(subject, mask_name, data=None, atlas=None, 
+                  target_list=None, demean=True,
                   normalise=True, gamma=None, power=None, 
                   output_fname=None):
     """
@@ -22,8 +22,6 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
         The name of the subject.
     mask_name : str
         The name of the mask file.
-    target_path : str, optional
-        The path to the target.
     data : str, optional
         The path to the data.
     atlas : str, optional. Defaults to None.
@@ -53,8 +51,8 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
         If the loaded data matrix and mask dimensions do not match.
 
     """    
-    if data is None and target_path is None:
-        raise ValueError("Please specify either target_path or data.")
+    if data is None and target_list is None:
+        raise ValueError("Please specify either target_list or data.")
     
     gamma = np.array(gamma).astype(np.float32) if gamma is not None else np.array([0])
     power = np.array(power).astype(np.float32) if power is not None else np.array([2, 1, 0.5, 0.2], dtype=np.float32)
@@ -66,13 +64,12 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
     # generate adjacency matrix
     inds1, inds2, n = get_adj_sparse_kdt(mask)
     
-    n_targets = len(target_list)
-    
     # load data into X
     if data is None:
+        n_targets = len(target_list)
         X = np.zeros((n_targets, n), dtype=np.float32)
         for k in range(n_targets):
-            X[k, :] = nib.load(os.path.join(subject, target_path, target_list[k])).get_fdata()[index].astype(np.float32)
+            X[k, :] = nib.load(os.path.join(subject, target_list[k])).get_fdata()[index].astype(np.float32)
         
         if output_fname is not None:
             #dump(X, os.path.join(subject, output_fname))
@@ -142,8 +139,8 @@ def load_labels(subject, mask_name, label_name):
     return torch.from_numpy(np.vstack((1 - y, y)).T).float()
 
 
-def load_data(subject, mask_name, label_name, target_path=None, data=None, 
-              atlas=None, target_list=DEFAULT_TARGET_LIST, demean=True,
+def load_data(subject, mask_name, label_name, data=None, 
+              atlas=None, target_list=None, demean=True,
               normalise=True, gamma=None, power=None, 
               output_fname=None):
     """
@@ -161,8 +158,6 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
         The name of the mask file.
     label_name : str
         The name of the label file.
-    target_path : str, optional
-        The path to the target.
     data : str, optional
         The path to the data.
     atlas : str, optional. Defaults to None.
@@ -193,10 +188,10 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
         If the loaded data matrix and mask dimensions do not match.
 
     """
-    features = load_features(subject, mask_name, target_path, data, atlas, 
-                             target_list, demean, normalise, 
-                             gamma, power, output_fname)
-    labels = load_labels(subject, mask_name, label_name)
+    features = load_features(subject=subject, mask_name=mask_name, data=data, atlas=atlas, 
+                             target_list=target_list, demean=demean, normalise=normalise, 
+                             gamma=gamma, power=power, output_fname=output_fname)
+    labels = load_labels(subject=subject, mask_name=mask_name, label_name=label_name)
     return features, labels
 
 
