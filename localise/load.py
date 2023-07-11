@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 DEFAULT_TARGET_LIST = [...]  # fill this with your default target list
 
 def load_features(subject, mask_name, target_path=None, data=None, atlas=None, 
-                  target_list=DEFAULT_TARGET_LIST, demean=True,
+                  target_list=None, demean=True,
                   normalise=True, gamma=None, power=None, 
                   output_fname=None):
     """
@@ -55,6 +55,9 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
     """    
     if data is None and target_path is None:
         raise ValueError("Please specify either target_path or data.")
+    
+    if data is None and target_list is None:
+        raise ValueError("Please specify a list of targets if data is not pre-saved.")
     
     gamma = np.array(gamma).astype(np.float32) if gamma is not None else np.array([0])
     power = np.array(power).astype(np.float32) if power is not None else np.array([2, 1, 0.5, 0.2], dtype=np.float32)
@@ -142,7 +145,7 @@ def load_labels(subject, mask_name, label_name):
 
 
 def load_data(subject, mask_name, label_name, target_path=None, data=None, 
-              atlas=None, target_list=DEFAULT_TARGET_LIST, demean=True,
+              atlas=None, target_list=None, demean=True,
               normalise=True, gamma=None, power=None, 
               output_fname=None):
     """
@@ -192,10 +195,11 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
         If the loaded data matrix and mask dimensions do not match.
 
     """
-    features = load_features(subject, mask_name, target_path, data, atlas, 
-                             target_list, demean, normalise, 
-                             gamma, power, output_fname)
-    labels = load_labels(subject, mask_name, label_name)
+    features = load_features(subject=subject, mask_name=mask_name, target_path=target_path, 
+                             data=data, atlas=atlas, target_list=target_list, 
+                             demean=demean, normalise=normalise, 
+                             gamma=gamma, power=power, output_fname=output_fname)
+    labels = load_labels(subject=subject, mask_name=mask_name, label_name=label_name)
     return features, labels
 
 
