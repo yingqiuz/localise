@@ -66,10 +66,9 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
     # generate adjacency matrix
     inds1, inds2, n = get_adj_sparse_kdt(mask)
     
-    n_targets = len(target_list)
-    
     # load data into X
     if data is None:
+        n_targets = len(target_list)
         X = np.zeros((n_targets, n), dtype=np.float32)
         for k in range(n_targets):
             X[k, :] = nib.load(os.path.join(subject, target_path, target_list[k])).get_fdata()[index].astype(np.float32)
