@@ -6,7 +6,7 @@ path_to_data = Path(__file__).parent / 'test_data'
 
 import torch
 from localise.load import load_data
-from localise.train import train_loop, val_loop, train
+from localise.train import train_loop, val_loop, train, apply_pretrained_model, apply_model
 from localise.flatten_forward import FlexibleClassifier, MLP
 
 subjects=['100610', '100408', '100307']
@@ -32,5 +32,17 @@ def test_val_loop():
     val_loop(batches, model, loss_fn)
     
 def test_train():
-    m = train([batches[0], batches[1]], [batches[2]], n_epochs=5, model_save_path=os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth'))
+    m = train([batches[0], batches[1]], [batches[2]], n_epochs=5, 
+              model_save_path=os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth'))
     assert isinstance(m, FlexibleClassifier)
+    predictions = apply_model([X for (X, y) in batches], m)
+    for prediction, batch in zip(predictions, batches):
+        assert prediction.shape == batch[1].shape
+    
+def test_apply_pretrained_model():
+    predictions = apply_pretrained_model(
+        [X for (X, y) in batches], 
+        os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth')
+        )
+    for prediction, batch in zip(predictions, batches):
+        assert prediction.shape == batch[1].shape

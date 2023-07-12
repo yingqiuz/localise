@@ -96,6 +96,9 @@ def train(training_data, test_data,
     X, y = training_data[0]
     n_features = X.X.shape[1]
     n_classes = y.shape[1]
+    if n_classes != X.K:
+        raise ValueError("n_classes does not match between features and labels.")
+
     n_kernels = X.f.shape[0]
 
     # Define a model
@@ -138,9 +141,9 @@ def apply_pretrained_model(data, model_save_path, model="Linear", spatial_model=
     """
 
     # get dimensions
-    X, _ = data[0]
+    X = data[0]
     n_features = X.X.shape[1]
-    n_classes = X.shape[1]
+    n_classes = X.K
     n_kernels = X.f.shape[0]
 
     # Define a model
@@ -163,7 +166,7 @@ def apply_pretrained_model(data, model_save_path, model="Linear", spatial_model=
     # Now we can use the model for prediction on the new data
     predictions = []
     with torch.no_grad():
-        for X, _ in data:
+        for X in data:
             pred = m(X)
             predictions.append(pred)
 
