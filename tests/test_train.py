@@ -5,7 +5,7 @@ from pathlib import Path
 path_to_data = Path(__file__).parent / 'test_data'
 
 import torch
-from localise.load import load_data
+from localise.load import load_data, ShuffledDataLoader
 from localise.train import train_loop, val_loop, train, apply_pretrained_model, apply_model
 from localise.flatten_forward import FlexibleClassifier, MLP
 
@@ -23,16 +23,17 @@ def test_train_loop():
     model = FlexibleClassifier(torch.nn.Linear(150, 2), is_crf=True, n_kernels=2, n_classes=2)
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-1)
-    train_loop(batches, model, loss_fn, optimizer, 1e-3, 1e-3, print_freq=1)
+    train_loop(ShuffledDataLoader(batches), model, loss_fn, optimizer, 1e-3, 1e-3, print_freq=1)
 
 
 def test_val_loop():
     model = FlexibleClassifier(MLP(150, 2, 2), is_crf=True, n_kernels=2, n_classes=2)
     loss_fn = torch.nn.CrossEntropyLoss()
-    val_loop(batches, model, loss_fn)
+    val_loop(ShuffledDataLoader(batches), model, loss_fn)
     
 def test_train():
-    m = train([batches[0], batches[1]], [batches[2]], n_epochs=5, 
+    m = train(ShuffledDataLoader([batches[0], batches[1]]), 
+              ShuffledDataLoader([batches[2]]), n_epochs=5, 
               model_save_path=os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth'))
     assert isinstance(m, FlexibleClassifier)
     predictions = apply_model([X for (X, y) in batches], m)

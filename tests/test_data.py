@@ -87,6 +87,9 @@ def test_shuffleddataloader():
                               target_list=['seeds_to_11101_1.nii.gz', 'seeds_to_11102_1.nii.gz'])
                 for subject in ['100307', '100408']]
     dataloader = ShuffledDataLoader(data)
+    assert len(dataloader) == 2
+    X, y = dataloader[0]
+    assert X.X.shape[0] == y.shape[0]
     for batch in dataloader:
         features, labels = batch
         assert features.X.shape[1] == 4

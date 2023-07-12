@@ -213,6 +213,13 @@ class ShuffledDataLoader():
         random.shuffle(self.data)
         return self
 
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        # return a different value every time
+        return self.data[index]
+
     def __next__(self):
         if self.index < len(self.data):
             result = self.data[self.index]
