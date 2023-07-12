@@ -113,3 +113,6 @@ dmypy.json
 # VSCode
 .vscode/
 
+# test_data related files
+saved_file.nii.gz
+features75.npy
