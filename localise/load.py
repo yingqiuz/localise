@@ -1,6 +1,6 @@
 import nibabel as nib
 import numpy as np
-import os
+import os, random
 from joblib import dump, load
 from .flatten_batch import get_adj_sparse_kdt, FlattenedCRFBatchTensor, Adjacency
 import torch
@@ -201,6 +201,25 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
                              gamma=gamma, power=power, output_fname=output_fname)
     labels = load_labels(subject=subject, mask_name=mask_name, label_name=label_name)
     return features, labels
+
+
+class ShuffledDataLoader():
+    def __init__(self, data):
+        self.data = data
+        self.index = 0
+
+    def __iter__(self):
+        self.index = 0
+        random.shuffle(self.data)
+        return self
+
+    def __next__(self):
+        if self.index < len(self.data):
+            result = self.data[self.index]
+            self.index += 1
+            return result
+        else:
+            raise StopIteration
 
 
 class CustomDataset(Dataset):

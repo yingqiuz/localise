@@ -7,8 +7,10 @@ from glob import glob
 from pathlib import Path
 path_to_data = Path(__file__).parent / 'test_data'
 
-from localise.load import load_features, load_labels, load_data
+from localise.load import load_features, load_labels, load_data, ShuffledDataLoader
 from localise.flatten_batch import FlattenedCRFBatchTensor
+from torch.utils.data import DataLoader
+
 
 def test_load_features():
     batch = load_features(subject=f'{path_to_data}/100610', 
@@ -74,21 +76,19 @@ def test_load_data():
     assert isinstance(batch[0], FlattenedCRFBatchTensor)
     assert len(batch) == 2
 
-def test_customdataset():
-    pass
-    #mask_name='roi/left/tha_small.nii.gz'
-    #label_name='high-quality-labels/left/labels.nii.gz'
-    #features = [load_features(subject=f'{path_to_data}/{subject}', 
-                              #mask_name='roi/left/tha_small.nii.gz', 
-                              #target_path='streamlines/left', 
-                              #power=[1, 2],
-                              #target_list=['seeds_to_11101_1.nii.gz', 'seeds_to_11102_1.nii.gz'])
-                #for subject in ['100307', '100408']]
-    #labels = [load_labels(f'{path_to_data}/{subject}', mask_name, label_name) 
-              #for subject in ['100307', '100408']]
-    #dataset = CustomDataset(features, labels)
-    #dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-    #for batch in dataloader:
-        #features, labels = batch
-        #assert features.X.shape[1] == 4
-        #assert labels.shape[0] == features.X.shape[0]
+def test_shuffleddataloader():
+    mask_name='roi/left/tha_small.nii.gz'
+    label_name='high-quality-labels/left/labels.nii.gz'
+    data = [load_data(subject=f'{path_to_data}/{subject}', 
+                              mask_name=mask_name, 
+                              label_name=label_name,
+                              target_path='streamlines/left', 
+                              power=[1, 2],
+                              target_list=['seeds_to_11101_1.nii.gz', 'seeds_to_11102_1.nii.gz'])
+                for subject in ['100307', '100408']]
+    dataloader = ShuffledDataLoader(data)
+    for batch in dataloader:
+        features, labels = batch
+        assert features.X.shape[1] == 4
+        assert labels.shape[0] == features.X.shape[0]
+
