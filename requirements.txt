@@ -5,3 +5,5 @@ nibabel
 scipy
 pytest
 argparse
+random
+textwrap
