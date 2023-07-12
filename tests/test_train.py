@@ -32,5 +32,5 @@ def test_val_loop():
     val_loop(batches, model, loss_fn)
     
 def test_train():
-    m = train([batches[0], batches[1]], [batches[2]], n_epochs=5)
+    m = train([batches[0], batches[1]], [batches[2]], n_epochs=5, model_save_path=os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth'))
     assert isinstance(m, FlexibleClassifier)
