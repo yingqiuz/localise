@@ -3,7 +3,7 @@ import os
 import argparse, textwrap, logging
 from localise.load import load_data, load_features
 from localise.train import train_loop, val_loop, train, apply_pretrained_model
-from utils import save_nifti
+from utils import save_nifti, get_subjects
 
 
 def parse_arguments():
@@ -84,6 +84,13 @@ def parse_arguments():
                           help=textwrap.dedent('''\
                           Output filename of the trained model.
                           '''))
+    p.add_argument('--model', '-m', required=False, type=str, dest='model', 
+                          help=textwrap.dedent('''\
+                          Filename of the trained model.
+                          '''))
+    p.add_argument('--model', '-m', required=False, type=str, dest='model', 
+                   help=textwrap.dedent('Filename of the trained model.'))
+    p.add_argument("--spatial", action="store_true", help="Use conditional random field.")
     p.add_argument('--verbose', '-v', action='store_true', help="Increase output verbosity")
 
     args = p.parse_args()
@@ -103,34 +110,61 @@ def parse_arguments():
     return args
 
 
+def predict_mode(subject, mask, structure, 
+                 target_path, target_list, 
+                 data, atlas, out, model, spatial):
+
+    logging.info('Predict mode on.\n')
+    subjects = get_subjects(subject)
+
+    # checking whether or not to use default
+    if data is None and target_list is None:
+        # load default target list
+        logging.info('Using default target list.')
+        with open(f'{structure}_default_target_list.txt', 'r') as f:
+            target_list = [line.strip() for line in f]
+
+        if model is not None:
+            logging.info(f'''\
+                         You are using the default target list for {structure} but not the default model.
+                         Please double check to make sure the model matches your target list.
+                         ''')
+    if data is not None or target_list is not None:
+        if model is None:
+            logging.info(f'''\
+                         You are using the default model for {structure}.
+                         Please make sure your data or target_list matches the default target list.
+                         ''')
+
+    # load connectivity features
+    data = [
+        load_features(
+            subject=subject, 
+            mask=mask, 
+            target_path=target_path, 
+            target_list=target_list, 
+            data=data, 
+            atlas=atlas
+        ) 
+        for subject in subjects
+    ]
+
+    # make predictions
+    if model is None:
+        model_dir = os.path.join('resources', 'models')
+        model_name = f'{structure}_crf_model.pth' if spatial else f'{structure}_model.pth'
+        model = os.path.join(model_dir, model_name)
+
+    predictions = apply_pretrained_model(data, model, spatial=spatial)
+
+    # save to nii files
+    for subject, prediction in zip(subjects, predictions):
+        save_nifti(prediction, os.path.join(subject, mask), os.path.join(subject, out))
+
+
 if __name__ == "__main__":
     args = parse_arguments()
     if args.predict:
-        logging.info('Predict mode on.\n')
-        # load data
-        if os.path.isfile(args.subject):
-            with open(args.subject, 'r') as file:
-                subjects = [line.strip() for line in file]
-        elif os.path.isdir(args.subject):
-            subjects = [args.subject]
-        else:
-            raise ValueError('Please specify the correct subject dir or txt file.')
-        structure = args.structure
-        if args.target_list is None:
-            # load default target list
-            with open(f'{structure}_default_target_list.txt', 'r') as f:
-                target_list = [line.strip() for line in file]
-        data = [load_features(subject=subject, 
-                              mask=args.mask, 
-                              target_path=args.target_path, 
-                              target_list=target_list, 
-                              data=args.data, 
-                              atlas=args.atlas) 
-                for subject in subjects]
-
-        # make predictions
-        predictions = apply_pretrained_model(data, f'{structure}_model.pth')
-        
-        # save to nii files
-        for subject, prediction in zip(subjects, predictions):
-            save_nifti(prediction, os.path.join(subject, args.mask, args.out))
+        predict_mode(args.subject, args.mask, args.structure, 
+                     args.target_path, args.target_list, 
+                     args.data, args.atlas, args.out, args.model, args.spatial)

@@ -36,3 +36,14 @@ def save_nifti(data, mask_file, output_file):
 # mask_file = 'mask.nii.gz'  # Binary NIfTI mask file
 # output_file = 'output.nii.gz'  # Output NIfTI file
 # save_nifti(data, mask_file, output_file)
+
+def get_subjects(subject_path):
+    """Load subjects from file or directory."""
+    if os.path.isfile(subject_path):
+        with open(subject_path, 'r') as f:
+            return [line.strip() for line in f]
+    elif os.path.isdir(subject_path):
+        return [subject_path]
+    else:
+        raise ValueError(f'Invalid subject path: {subject_path}. Please specify a correct subject dir or txt file.')
+
