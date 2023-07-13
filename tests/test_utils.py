@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from localise.utils import save_nifti
+from localise.utils import save_nifti, get_subjects
 from pathlib import Path
 import nibabel as nib
 
@@ -18,3 +18,22 @@ def test_save_nifti():
     
     saved_data = nib.load(output_fname).get_fdata()
     assert np.allclose(saved_data[mask_data != 0], vectors, atol=1e-6, rtol=1e-5)
+
+
+def test_get_subjects(tmp_path):
+    # Test with file
+    d = tmp_path / "subdir"
+    d.mkdir()
+    p = d / "subjects.txt"
+    p.write_text("subject1\nsubject2\n")
+
+    result = get_subjects(str(p))
+    assert result == ["subject1", "subject2"]
+
+    # Test with directory
+    result = get_subjects(str(d))
+    assert result == [str(d)]
+
+    # Test with invalid path
+    with pytest.raises(ValueError):
+        get_subjects(str(tmp_path / "nonexistent"))
