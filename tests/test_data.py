@@ -85,13 +85,27 @@ def test_shuffleddataloader():
                               target_path='streamlines/left', 
                               power=[1, 2],
                               target_list=['seeds_to_11101_1.nii.gz', 'seeds_to_11102_1.nii.gz'])
-                for subject in ['100307', '100408']]
+                for subject in ['100610', '100307', '100408']]
     dataloader = ShuffledDataLoader(data)
-    assert len(dataloader) == 2
+    assert len(dataloader) == 3
     X, y = dataloader[0]
     assert X.X.shape[0] == y.shape[0]
     for batch in dataloader:
         features, labels = batch
         assert features.X.shape[1] == 4
         assert labels.shape[0] == features.X.shape[0]
+    
+    train_set, test_set = dataloader.split_data(0.67)
+    assert len(test_set) == 1
+    assert len(train_set) == 2
+    for batch in train_set:
+        features, labels = batch
+        assert features.X.shape[1] == 4
+        assert labels.shape[0] == features.X.shape[0]
+
+    for batch in test_set:
+        features, labels = batch
+        assert features.X.shape[1] == 4
+        assert labels.shape[0] == features.X.shape[0]
+        
 

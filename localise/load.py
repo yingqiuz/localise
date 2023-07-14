@@ -228,6 +228,27 @@ class ShuffledDataLoader():
         else:
             raise StopIteration
 
+    def split_data(self, train_proportion):
+        # randomize the data
+        random.shuffle(self.data)
+
+        # find the split index
+        split_idx = round(len(self.data) * train_proportion)
+        if split_idx == 0:
+            split_idx = 1
+        elif split_idx == len(self.data):
+            split_idx -= 1
+
+        # split the data
+        train_data = self.data[:split_idx]
+        validation_data = self.data[split_idx:]
+
+        # create data loaders for train and validation sets
+        train_loader = ShuffledDataLoader(train_data)
+        validation_loader = ShuffledDataLoader(validation_data)
+
+        return train_loader, validation_loader
+
 
 class CustomDataset(Dataset):
     def __init__(self, data, labels):
