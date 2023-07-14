@@ -127,23 +127,46 @@ def train(training_data, test_data,
 
     return m
 
-def apply_pretrained_model(data, model_save_path, model="Linear", spatial_model=True):
+
+def train_without_val(training_data,
+                      model="Linear",
+                      loss_fn=nn.CrossEntropyLoss(), 
+                      optimizer=optim.Adam, 
+                      n_epochs=100, 
+                      spatial_model=True, 
+                      l1_lambda=1e-3, l2_lambda=1e-3, lr=1e-3,
+                      print_freq=10, model_save_path=None):
     """
-    Function to load a pre-trained PyTorch model and apply it to new data.
+    Function to train a PyTorch model and evaluate it using provided training and test data.
 
     Parameters:
-    data (Iterables): Iterable of tuples 
-        containing the new data, (FlattenedCRFBatchTensor, torch.tensor)
-    model_save_path (str): Path where the trained model is saved
+    training_data (Iterables): Iterable of tuples 
+        containing the training data, (FlattenedCRFBatchTensor, torch.tensor)
     model (str, optional): String representing the type of model to use. 
         Options: "Linear", "MLP", or PyTorch model class. Default: "Linear"
+    loss_fn (torch.nn.modules.loss, optional): 
+        Loss function. Default: CrossEntropyLoss
+    optimizer (torch.optim.Optimizer, optional): 
+        Optimizer to use for training. Default: Adam
+    n_epochs (int, optional): Number of training epochs. Default: 100
     spatial_model (bool, optional): If True, use spatial model. Default: True
+    l1_lambda (float, optional): Weight for L1 regularization. Default: 1e-3
+    l2_lambda (float, optional): Weight for L2 regularization. Default: 1e-3
+    lr (float, optional): Learning rate for the optimizer. Default: 1e-3
+    print_freq (int, optional): Frequency of loss print statements. Default: 10
+    model_save_path (str, optional): Path where the trained model will be saved. If None, the model will not be saved. Default: None
+
+    Returns:
+    m (torch.nn.Module): The trained PyTorch model
     """
 
     # get dimensions
-    X = data[0]
+    X, y = training_data[0]
     n_features = X.X.shape[1]
-    n_classes = X.K
+    n_classes = y.shape[1]
+    if n_classes != X.K:
+        raise ValueError("n_classes does not match between features and labels.")
+
     n_kernels = X.f.shape[0]
 
     # Define a model
@@ -157,37 +180,87 @@ def apply_pretrained_model(data, model_save_path, model="Linear", spatial_model=
         m = FlexibleClassifier(model, n_classes=n_classes, 
                                    n_kernels=n_kernels, is_crf=spatial_model)
 
-    # Load the saved model parameters
-    m.load_state_dict(torch.load(model_save_path))
-    
-    # Ensure model is in evaluation mode
-    m.eval()
-    
-    # Now we can use the model for prediction on the new data
-    predictions = []
-    with torch.no_grad():
-        for X in data:
-            pred = m(X)
-            predictions.append(pred)
+    optimizer = optimizer(m.parameters(), lr=lr)
+    for t in range(n_epochs):
+        logging.info(f"Epoch {t+1}\n-------------------------------")
+        train_loop(training_data, m, loss_fn, optimizer, l1_lambda, l2_lambda, print_freq)
 
-    return predictions
+    logging.info("Training Done!")
+    
+    # save the model if requested 
+    if model_save_path is not None:
+        torch.save(m.state_dict(), model_save_path)
+        logging.info(f"Model saved to {model_save_path}")
 
-def apply_model(data, model):
-    """_summary_
+    return m
+
+
+def train_with_val(training_data,
+                   model="Linear",
+                   loss_fn=nn.CrossEntropyLoss(), 
+                   optimizer=optim.Adam, 
+                   n_epochs=100, 
+                   spatial_model=True, 
+                   l1_lambda=1e-3, l2_lambda=1e-3, lr=1e-3,
+                   print_freq=10, model_save_path=None, 
+                   train_proportion=0.8):
+    """
+    Function to train a PyTorch model and evaluate it using provided training and test data.
 
     Parameters:
-    data (Iterables): Iterable of tuples 
-        containing the new data, (FlattenedCRFBatchTensor, torch.tensor)
-    model (torch.nn.Module): The trained PyTorch model
+    training_data (Iterables): Iterable of tuples 
+        containing the training data, (FlattenedCRFBatchTensor, torch.tensor)
+    model (str, optional): String representing the type of model to use. 
+        Options: "Linear", "MLP", or PyTorch model class. Default: "Linear"
+    loss_fn (torch.nn.modules.loss, optional): 
+        Loss function. Default: CrossEntropyLoss
+    optimizer (torch.optim.Optimizer, optional): 
+        Optimizer to use for training. Default: Adam
+    n_epochs (int, optional): Number of training epochs. Default: 100
+    spatial_model (bool, optional): If True, use spatial model. Default: True
+    l1_lambda (float, optional): Weight for L1 regularization. Default: 1e-3
+    l2_lambda (float, optional): Weight for L2 regularization. Default: 1e-3
+    lr (float, optional): Learning rate for the optimizer. Default: 1e-3
+    print_freq (int, optional): Frequency of loss print statements. Default: 10
+    model_save_path (str, optional): Path where the trained model will be saved. If None, the model will not be saved. Default: None
+    train_proportion (float, optional): The proportion of samples used for training in each epoch.
 
     Returns:
-        predictions: list
+    m (torch.nn.Module): The trained PyTorch model
     """
-    model.eval()
-    predictions = []
-    with torch.no_grad():
-        for X in data:
-            pred = model(X)
-            predictions.append(pred)
 
-    return predictions
+    # get dimensions
+    X, y = training_data[0]
+    n_features = X.X.shape[1]
+    n_classes = y.shape[1]
+    if n_classes != X.K:
+        raise ValueError("n_classes does not match between features and labels.")
+
+    n_kernels = X.f.shape[0]
+
+    # Define a model
+    if model == "Linear":
+        m = FlexibleClassifier(Linear(n_features, n_classes), n_classes=n_classes, 
+                                          n_kernels=n_kernels, is_crf=spatial_model)
+    elif model == "MLP":
+        m = FlexibleClassifier(MLP(n_features, 2, n_classes), n_classes=n_classes, 
+                                       n_kernels=n_kernels, is_crf=spatial_model)
+    else:
+        m = FlexibleClassifier(model, n_classes=n_classes, 
+                                   n_kernels=n_kernels, is_crf=spatial_model)
+
+    optimizer = optimizer(m.parameters(), lr=lr)
+    for t in range(n_epochs):
+        logging.info(f"Epoch {t+1}\n-------------------------------")
+        train_data, test_data = training_data.split_data(train_proportion)
+        train_loop(train_data, m, loss_fn, optimizer, l1_lambda, l2_lambda, print_freq)
+        val_loop(test_data, m, loss_fn)
+
+    logging.info("Training Done!")
+    
+    # save the model if requested 
+    if model_save_path is not None:
+        torch.save(m.state_dict(), model_save_path)
+        logging.info(f"Model saved to {model_save_path}")
+
+    return m
