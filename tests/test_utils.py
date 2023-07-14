@@ -1,4 +1,4 @@
-import os
+import os, pytest
 import numpy as np
 from localise.utils import save_nifti, get_subjects
 from pathlib import Path
