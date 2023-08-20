@@ -53,6 +53,7 @@ coverage.xml
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*.ipynb
 
 # IPython
 profile_default/
@@ -112,3 +113,7 @@ dmypy.json
 # VSCode
 .vscode/
 
+# test_data related files
+saved_file.nii.gz
+features75.npy
+tests/test_data/models/tmp_model.pth

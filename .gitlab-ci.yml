@@ -1,0 +1,30 @@
+image: python:3.9
+
+stages:
+  - build
+  - test
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+before_script:
+  - python -V  # Print out python version for debugging
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+  - pip install -r requirements.txt
+
+build:
+  stage: build
+  script:
+    - python setup.py install
+
+test:
+  stage: test
+  script: 
+    - python -m pytest

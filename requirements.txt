@@ -1,3 +1,10 @@
 numpy
 torch
 joblib
+nibabel
+scipy
+pytest
+argparse
+random
+textwrap
+pkg_resources
