@@ -18,7 +18,7 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
 
     Parameters
     ----------
-    subject : str
+    subject : str or list of str
         The name of the subject.
     mask_name : str
         The name of the mask file.
@@ -52,7 +52,16 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
         If both `data` and `target_path` are not set.
         If the loaded data matrix and mask dimensions do not match.
 
-    """    
+    """
+    if isinstance(subject, list):
+        results = [load_features(subject=s, mask_name=mask_name, 
+                                 target_path=target_path, data=data, atlas=atlas, 
+                                 target_list=target_list, demean=demean, 
+                                 normalise=normalise, gamma=gamma, 
+                                 power=power, output_fname=output_fname) 
+                   for s in subject]
+        return results
+
     if data is None and target_path is None:
         raise ValueError("Please specify either target_path or data.")
     
@@ -122,7 +131,7 @@ def load_labels(subject, mask_name, label_name):
 
     Parameters
     ----------
-    subject : str
+    subject : str or list of str
         Path to the subject directory.
     mask_name : str
         Filename of the mask data file.
@@ -136,6 +145,11 @@ def load_labels(subject, mask_name, label_name):
         The first row is a binary vector corresponding to the label data (1 if the label data > 0, otherwise 0).
         The second row is the inverse of the first row.
     """
+
+    if isinstance(subject, list):
+        results = [load_labels(subject=s, mask_name=mask_name, label_name=label_name) 
+                   for s in subject]
+        return results
 
     mask = nib.load(os.path.join(subject, mask_name)).get_fdata()
     index = np.where(mask > 0)
@@ -157,7 +171,7 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
 
     Parameters
     ----------
-    subject : str
+    subject : str or list of str
         The name of the subject.
     mask_name : str
         The name of the mask file.
@@ -195,6 +209,15 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
         If the loaded data matrix and mask dimensions do not match.
 
     """
+    if isinstance(subject, list):
+        results = [load_data(subject=s, mask_name=mask_name, label_name=label_name, 
+                             target_path=target_path, data=data, atlas=atlas, 
+                             target_list=target_list, demean=demean, 
+                             normalise=normalise, gamma=gamma, 
+                             power=power, output_fname=output_fname) 
+                   for s in subject]
+        return results
+
     features = load_features(subject=subject, mask_name=mask_name, target_path=target_path, 
                              data=data, atlas=atlas, target_list=target_list, 
                              demean=demean, normalise=normalise, 

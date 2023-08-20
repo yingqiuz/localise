@@ -44,22 +44,29 @@ def test_load_features():
     assert batch.f.shape[0] == len(gamma)
     assert batch.f.shape[1] == batch.X.shape[0]
     
-    batch = load_features(subject=os.path.join(f'{path_to_data}', subject), 
+    batch = load_features(subject=[os.path.join(f'{path_to_data}', subject)], 
               mask_name='roi/left/tha_small.nii.gz', 
               power=power, gamma=gamma, 
               data='streamlines/left/features75.npy')
 
-    assert batch.X.shape[1] == len(target_list) * len(power)
-    assert batch.f.shape[0] == len(gamma)
-    assert batch.f.shape[1] == batch.X.shape[0]
-    
+    assert batch[0].X.shape[1] == len(target_list) * len(power)
+    assert batch[0].f.shape[0] == len(gamma)
+    assert batch[0].f.shape[1] == batch[0].X.shape[0]
+
+
 def test_load_labels():
     subject=os.path.join(f'{path_to_data}','100610')
     mask_name='roi/left/tha_small.nii.gz'
     label_name='high-quality-labels/left/labels.nii.gz'
     labels = load_labels(subject, mask_name, label_name)
     assert list(labels.shape) == [4142, 2]
+
+    subjects = [os.path.join(f'{path_to_data}', subject) for subject in ['100610', '100408']]
+    labels = load_labels(subject=subjects, mask_name=mask_name, label_name=label_name)
+    assert len(labels) == 2
+    assert labels[0].shape[0] == 4142
         
+
 def test_load_data():
     mask_name='roi/left/tha_small.nii.gz'
     label_name='high-quality-labels/left/labels.nii.gz'
@@ -75,6 +82,19 @@ def test_load_data():
     assert isinstance(batch, tuple)
     assert isinstance(batch[0], FlattenedCRFBatchTensor)
     assert len(batch) == 2
+
+    subjects = [os.path.join(f'{path_to_data}', subject) for subject in ['100610', '100408', '100307']]
+    batches = load_data(subject=subjects, 
+                        mask_name=mask_name, 
+                        label_name=label_name,
+                        power=[1, 2],
+                        atlas='roi/left/atlas.nii.gz',
+                        target_path='streamlines/left', 
+                        target_list=['seeds_to_11101_1.nii.gz', 'seeds_to_11102_1.nii.gz'])
+    assert len(batches) == 3
+    assert len(batches[0]) == 2
+    assert isinstance(batches[2][0], FlattenedCRFBatchTensor)
+
 
 def test_shuffleddataloader():
     mask_name='roi/left/tha_small.nii.gz'
