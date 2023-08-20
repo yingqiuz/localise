@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
 import argparse, textwrap, logging
-import pkg_resources
 from pathlib import Path
 from localise.load import load_data, load_features, ShuffledDataLoader
 from localise.train import train, train_with_val, train_without_val
