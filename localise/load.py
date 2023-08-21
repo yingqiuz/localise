@@ -108,15 +108,15 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
     
     # maximum tract density normalised to 1
     if normalise:
-        maxX = np.max(X, axis=1)
+        maxX = np.max(X, axis=0, keepdims=True)
         maxX[ maxX==0 ] = 1
-        X /= maxX[:, None]
+        X /= maxX
     
     # replace np.nan and np.inf with 0
     X = np.nan_to_num(X)
 
     if demean:
-        X -= np.mean(X, axis=1, keepdims=True)
+        X -= np.mean(X, axis=0, keepdims=True)
     
     return FlattenedCRFBatchTensor(torch.from_numpy(X.T).float(), Adjacency(inds1, inds2, n), K=2, gamma=torch.from_numpy(gamma).float())
 
