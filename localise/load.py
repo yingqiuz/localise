@@ -28,8 +28,8 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
         The path to the data.
     atlas : str, optional. Defaults to None.
         The path to the atlas. If not None, will include this as an additional features
-    target_list : list, optional
-        A list of targets. Defaults to `DEFAULT_TARGET_LIST`.
+    target_list : list or str, optional
+        A list of targets, or the txt file listing the names of the targets. 
     demean : bool, optional
         If True, demean the feature matrix. Defaults to True.
     normalise : bool, optional
@@ -80,6 +80,11 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
     
     # load data into X
     if data is None:
+        # if target_list is a file containing target names
+        if isinstance(target_list, str):
+            with open(target_list, 'r') as f:
+                target_list = [line.strip() for line in f]
+
         n_targets = len(target_list)
         X = np.zeros((n_targets, n), dtype=np.float32)
         for k in range(n_targets):
@@ -183,8 +188,8 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
         The path to the data.
     atlas : str, optional. Defaults to None.
         The path to the atlas. If not None, will include this as an additional feature
-    target_list : list, optional
-        A list of targets. Defaults to `DEFAULT_TARGET_LIST`.
+    target_list : list or str, optional
+        A list of targets, or the txt file listing the names of the targets. 
     demean : bool, optional
         If True, demean the feature matrix. Defaults to True.
     normalise : bool, optional
