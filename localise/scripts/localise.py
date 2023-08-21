@@ -131,8 +131,7 @@ def parse_arguments():
     return args
 
 
-def predict_mode(subject, mask, structure, 
-                 target_path, target_list, 
+def predict_mode(subject, mask, structure, target_path, target_list, 
                  data, atlas, out, model, spatial, data_type):
 
     logging.info('Predict mode on.\n')
@@ -169,11 +168,22 @@ def predict_mode(subject, mask, structure,
     else:
         logging.info(f'Using the model stored in {model}.')
 
+        # check errors. either specify --data, or specify both --target_path and --target_list
+        if data is None:
+            if target_path is None:
+                raise ValueError("Please specify --target_path if you didn't specify --data")
+            if target_list is None:
+                raise ValueError("Please specify --target_list if you didn't specify --data when you are not using the default model.")
+            # load the list of targets if data is None
+            with open(target_list, 'r') as f:
+                target_list = [line.strip() for line in f]
+            
+
     # load connectivity features
     data = [
         load_features(
             subject=subject, 
-            mask=mask, 
+            mask_name=mask, 
             target_path=target_path, 
             target_list=target_list, 
             data=data, 
@@ -182,11 +192,11 @@ def predict_mode(subject, mask, structure,
         for subject in subjects
     ]
 
-    predictions = apply_pretrained_model(data, model, spatial=spatial)
+    predictions = apply_pretrained_model(data, model, spatial_model=spatial)
 
     # save to nii files
     for subject, prediction in zip(subjects, predictions):
-        save_nifti(prediction, os.path.join(subject, mask), os.path.join(subject, out))
+        save_nifti(prediction.detach().numpy()[:, -1], os.path.join(subject, mask), os.path.join(subject, out))
 
     return predictions
 
