@@ -26,7 +26,7 @@ def test_load_features():
               mask_name='roi/left/tha_small.nii.gz', 
               target_path='streamlines/left', 
               atlas='roi/left/atlas.nii.gz', power=[0.5, 1, 2],
-              target_list=['seeds_to_11101_1.nii.gz', 'seeds_to_11102_1.nii.gz'])
+              target_list=f'{path_to_data}/models/target_list.txt')
     assert batch.X.shape[1] == 7
     
     subject='100610'
