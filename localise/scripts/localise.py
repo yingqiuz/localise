@@ -153,12 +153,13 @@ def predict_mode(subject, mask, structure, target_path, target_list,
         if not os.path.exists(model):
             raise ValueError(f'We dont have a pretrained model for {structure} {data_type}.')
 
+        target_list_fname = os.path.join(PKG_PATH, 'resources', 'data', 
+                                         f'{structure}_default_target_list.txt')
         # checking whether or not to use default
         if data is None and target_list is None:
             # load default target list
             logging.info('Using default target list.')
-            target_list_fname = os.path.join(PKG_PATH, 'resources', 'data', 
-                                             f'{structure}_default_target_list.txt')
+            
             with open(target_list_fname, 'r') as f:
                 target_list = [line.strip() for line in f]
 
@@ -173,11 +174,7 @@ def predict_mode(subject, mask, structure, target_path, target_list,
             if target_path is None:
                 raise ValueError("Please specify --target_path if you didn't specify --data")
             if target_list is None:
-                raise ValueError("Please specify --target_list if you didn't specify --data when you are not using the default model.")
-            # load the list of targets if data is None
-            with open(target_list, 'r') as f:
-                target_list = [line.strip() for line in f]
-            
+                raise ValueError("Please specify --target_list if you didn't specify --data when you are not using the default model.")        
 
     # load connectivity features
     data = [
