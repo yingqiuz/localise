@@ -1,6 +1,6 @@
 import os, pytest
 import numpy as np
-from localise.utils import save_nifti, get_subjects
+from localise.utils import save_nifti, save_nifti_4D, get_subjects
 from pathlib import Path
 import nibabel as nib
 
@@ -18,6 +18,22 @@ def test_save_nifti():
     
     saved_data = nib.load(output_fname).get_fdata()
     assert np.allclose(saved_data[mask_data != 0], vectors, atol=1e-6, rtol=1e-5)
+
+
+def test_save_nifti_4D():
+    subject = '100610'
+    mask = os.path.join(path_to_data, subject, 'roi', 'left', 'tha.nii.gz')
+    mask_data = nib.load(mask).get_fdata()
+    output_fname = os.path.join(path_to_data, subject, 'saved_file.nii.gz')
+
+    vectors = np.random.randn(np.count_nonzero(mask_data), 2)
+    save_nifti_4D(vectors, mask, output_fname)
+    
+    saved_data = nib.load(output_fname).get_fdata()
+    assert saved_data.shape[-1] == 2
+    for k in range(2):
+        saved_data_slice = saved_data[:, :, :, k]
+        assert np.allclose(saved_data_slice[mask_data != 0], vectors[:, k], atol=1e-6, rtol=1e-5)
 
 
 def test_get_subjects(tmp_path):
