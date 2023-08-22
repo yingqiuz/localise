@@ -165,20 +165,23 @@ def predict_mode(subject, mask, structure=None, target_path=None, target_list=No
     return predictions
 
 
-def train_mode(subject, mask, label, target_path,
-               target_list, data, atlas, out_model, 
-               spatial, epochs):
+def train_mode(subject, mask, label, target_path=None,
+               target_list=None, data=None, atlas=None, out_model=None, 
+               spatial=True, epochs=100):
     
     logging.info('Training mode on.\n')
     subjects = get_subjects(subject)
     
     if data is None and target_list is None:
-        raise ValueError('Please specify --target_list or --data.')
+        raise ValueError("Please specify --target_list if you didn't specify --data.")
+    
+    if data is None and target_path is None:
+        raise ValueError("Please specify --target_path if you didn't specify --data.")
     
     data = [
         load_data(
             subject=subject, 
-            mask=mask, 
+            mask_name=mask, 
             label_name=label,
             target_path=target_path, 
             target_list=target_list, 
