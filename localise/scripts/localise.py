@@ -2,14 +2,8 @@
 import os
 import argparse, textwrap, logging
 from pathlib import Path
-from localise.load import load_data, load_features, ShuffledDataLoader
-from localise.train import train, train_with_val, train_without_val
-from localise.predict import apply_pretrained_model
-from localise.utils import save_nifti, get_subjects
+from localise.utils import predict_mode, train_mode
 
-
-#PKG_PATH = pkg_resources.get_distribution('localise').location
-PKG_PATH = Path(__file__).parent.parent
 
 def parse_arguments():
     p = argparse.ArgumentParser(description="Localise")
@@ -129,113 +123,15 @@ def parse_arguments():
         p.error('At least one of --data or --target_path must be provided.')
 
     return args
-
-
-def predict_mode(subject, mask, structure, target_path, target_list, 
-                 data, atlas, out, model, spatial, data_type):
-
-    logging.info('Predict mode on.\n')
-    subjects = get_subjects(subject)
-
-    if model is None:
-        # error checking
-        if structure is None:
-            raise ValueError('When using the default model, you must specify the structure.')
-        if data_type is None:
-            raise ValueError('When using the default model, you must specify the data_type.')
-
-        logging.info(f'Using the default model for {structure} on {data_type}.')
-        # load the default model.
-        model_dir = os.path.join(PKG_PATH, 'resources', 'models', structure, data_type)
-        model_name = f'{structure}_crf_model.pth' if spatial else f'{structure}_model.pth'
-        model = os.path.join(model_dir, model_name)
-
-        if not os.path.exists(model):
-            raise ValueError(f'We dont have a pretrained model for {structure} {data_type}.')
-
-        target_list_fname = os.path.join(PKG_PATH, 'resources', 'data', 
-                                         f'{structure}_default_target_list.txt')
-        # checking whether or not to use default
-        if data is None and target_list is None:
-            # load default target list
-            logging.info('Using default target list.')
-            
-            with open(target_list_fname, 'r') as f:
-                target_list = [line.strip() for line in f]
-
-        else:
-            logging.info(f'Please make sure your data or target_list matches the order of the default target list {target_list_fname}.')
-
-    else:
-        logging.info(f'Using the model stored in {model}.')
-
-        # check errors. either specify --data, or specify both --target_path and --target_list
-        if data is None:
-            if target_path is None:
-                raise ValueError("Please specify --target_path if you didn't specify --data")
-            if target_list is None:
-                raise ValueError("Please specify --target_list if you didn't specify --data when you are not using the default model.")        
-
-    # load connectivity features
-    data = [
-        load_features(
-            subject=subject, 
-            mask_name=mask, 
-            target_path=target_path, 
-            target_list=target_list, 
-            data=data, 
-            atlas=atlas
-        ) 
-        for subject in subjects
-    ]
-
-    predictions = apply_pretrained_model(data, model, spatial_model=spatial)
-
-    # save to nii files
-    for subject, prediction in zip(subjects, predictions):
-        save_nifti(prediction.detach().numpy()[:, -1], os.path.join(subject, mask), os.path.join(subject, out))
-
-    return predictions
-
-
-def train_mode(subject, mask, label, target_path,
-               target_list, data, atlas, out_model, 
-               spatial, epochs):
-    
-    logging.info('Training mode on.\n')
-    subjects = get_subjects(subject)
-    
-    if data is None and target_list is None:
-        raise ValueError('Please specify --target_list or --data.')
-    
-    data = [
-        load_data(
-            subject=subject, 
-            mask=mask, 
-            label_name=label,
-            target_path=target_path, 
-            target_list=target_list, 
-            data=data, 
-            atlas=atlas
-        ) 
-        for subject in subjects
-    ]
-    
-    dataloader = ShuffledDataLoader(data)
-    model = train_without_val(dataloader, n_epochs=epochs, 
-                              spatial_model=spatial, 
-                              model_save_path=out_model)
-    
-    return model
     
 
 if __name__ == "__main__":
     args = parse_arguments()
     if args.predict:
-        predict_mode(args.subject, args.mask, args.structure, 
-                     args.target_path, args.target_list, 
-                     args.data, args.atlas, args.out, 
-                     args.model, args.spatial, args.data_type)
+        predict_mode(subject=args.subject, mask=args.mask, structure=args.structure, 
+                     target_path=args.target_path, target_list=args.target_list, 
+                     data=args.data, atlas=args.atlas, out=args.out, 
+                     model=args.model, spatial=args.spatial, data_type=args.data_type)
     elif args.train:
         train_mode(args.subject, args.mask, args.label, 
                    args.target_path, args.target_list, 
