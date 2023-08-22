@@ -1,6 +1,7 @@
 import os, pytest
 import numpy as np
 from localise.utils import save_nifti, save_nifti_4D, get_subjects
+from localise.utils import predict_mode, train_mode
 from pathlib import Path
 import nibabel as nib
 
@@ -53,3 +54,37 @@ def test_get_subjects(tmp_path):
     # Test with invalid path
     with pytest.raises(ValueError):
         get_subjects(str(tmp_path / "nonexistent"))
+
+
+def test_predict_mode():
+    subject = f'{path_to_data}/100206'
+    mask = 'roi/left/tha_small.nii.gz'
+    target_path = 'streamlines/left'
+    target_list = f'{path_to_data}/models/targets_list113_left.txt'
+    atlas = 'roi/left/atlas.nii.gz'
+    out = 'roi/left/prediction.nii.gz'
+    model = f'{path_to_data}/models/vim_spatial_model.pth'
+
+    predict_mode(subject=subject, mask=mask, target_path=target_path, 
+                 target_list=target_list,atlas=atlas,out=out,model=model)
+    assert os.path.isfile(os.path.join(subject, out))
+    os.remove(os.path.join(subject, out))
+
+    predict_mode(subject=subject, mask=mask, structure='vim', target_path=target_path, 
+                 atlas=atlas, out=out, data_type='single32')
+    assert os.path.isfile(os.path.join(subject, out))
+    os.remove(os.path.join(subject, out))
+    
+    with pytest.raises(ValueError):
+        predict_mode(subject=subject, mask=mask, target_path=target_path, 
+                     atlas=atlas, out=out)
+        
+    with pytest.raises(ValueError):
+        predict_mode(subject=subject, mask=mask, structure='vim', target_path=target_path, 
+                     atlas=atlas, out=out)
+        
+    predict_mode(subject=subject, mask=mask, structure='vim', target_path=target_path, 
+                 target_list=target_list, atlas=atlas, out=out, data_type='single32')
+
+    assert os.path.isfile(os.path.join(subject, out))
+    os.remove(os.path.join(subject, out))
