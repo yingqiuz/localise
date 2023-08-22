@@ -67,7 +67,8 @@ def parse_arguments():
                           '''))
     p.add_argument('--spatial', action='store_true', required=False,
                    help='Use conditional random field (recommended).')
-    p.add_argument('--verbose', '-v', action='store_true', help="Increase output verbosity")
+    p.add_argument('--verbose', '-v', action='store_true', required=False, 
+                   help="Increase output verbosity")
     
     # predict group
     predict_group.add_argument('--structure', '-r', required=False, dest='structure', type=str,
