@@ -88,3 +88,9 @@ def test_predict_mode():
 
     assert os.path.isfile(os.path.join(subject, out))
     os.remove(os.path.join(subject, out))
+
+    predict_mode(subject=subject, mask=mask, structure='vim', target_path=target_path, spatial=False,
+                 target_list=target_list, atlas=atlas, out=out, data_type='single32')
+
+    assert os.path.isfile(os.path.join(subject, out))
+    os.remove(os.path.join(subject, out))
