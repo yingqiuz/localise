@@ -12,6 +12,34 @@ pip install .
 
 ## Usage
 
+Subjects must be organised in the same file structure. Suppose your data is organised in this way:
+
+```bash
+subject001/
+├── streamlines
+│   ├── left
+│       ├── seeds_to_target1.nii.gz
+│       ├── seeds_to_target2.nii.gz
+│   ├── right
+│       ├── seeds_to_target1.nii.gz
+│       ├── seeds_to_target2.nii.gz
+├── roi
+│   ├── left
+│       ├── tha.nii.gz
+│       ├── atlas.nii.gz
+│   ├── right
+│       ├── tha.nii.gz
+│       ├── atlas.nii.gz
+├── high-quality-labels
+│   ├── left
+│       ├── labels.nii.gz
+│   ├── right
+│       ├── labels.nii.gz
+└── otherfiles
+subject002/
+subject003/
+```
+
 ### Command-line interface
 
 For a comprehensive list of available commands and options, enter:
