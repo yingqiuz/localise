@@ -104,4 +104,11 @@ model_save_path = 'your_trained_model.pth'
 
 # train a model and store in m
 m = train(train_dataloarder, test_dataloader, model_save_path=model_save_path)
+
+# make predictions
+predictions = apply_model(test_data, m)
+
+# save to nii
+for prediction, subject in zip(predictions, test_list):
+    save_nifti_4D(prediction, os.path.join(subject, mask_name), os.path.join(subject, 'predictions'))
 ```
