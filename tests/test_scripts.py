@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from localise.scripts.localise import parse_arguments
+from localise.args import parse_arguments
 
 def test_parse_arguments():
 
