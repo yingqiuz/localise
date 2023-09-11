@@ -58,6 +58,18 @@ def val_loop(data, model, loss_fn):
     logging.info(f"Test Error: \n Avg loss: {test_loss / len(data):>8f} \n")
 
 
+def initialize_model(model, n_features, n_classes, n_kernels, spatial_model):
+    if model == "Linear":
+        return FlexibleClassifier(Linear(n_features, n_classes), n_classes=n_classes, 
+                               n_kernels=n_kernels, is_crf=spatial_model)
+    elif model == "MLP":
+        return FlexibleClassifier(MLP(n_features, 2, n_classes), n_classes=n_classes, 
+                               n_kernels=n_kernels, is_crf=spatial_model)
+    else:
+        return FlexibleClassifier(model, n_classes=n_classes, 
+                               n_kernels=n_kernels, is_crf=spatial_model)
+
+
 def train(training_data, test_data, 
           model="Linear",
           loss_fn=nn.CrossEntropyLoss(), 
@@ -102,23 +114,31 @@ def train(training_data, test_data,
     n_kernels = X.f.shape[0]
 
     # Define a model
-    if model == "Linear":
-        m = FlexibleClassifier(Linear(n_features, n_classes), n_classes=n_classes, 
-                                          n_kernels=n_kernels, is_crf=spatial_model)
-    elif model == "MLP":
-        m = FlexibleClassifier(MLP(n_features, 2, n_classes), n_classes=n_classes, 
-                                       n_kernels=n_kernels, is_crf=spatial_model)
-    else:
-        m = FlexibleClassifier(model, n_classes=n_classes, 
-                                   n_kernels=n_kernels, is_crf=spatial_model)
+    m = initialize_model(model, n_features, n_classes, n_kernels, spatial_model=spatial_model)
+    
+    # if requires a spatial model, first train a non-spatial one to initialise
+    if spatial_model:
+        m_init = initialize_model(model, n_features, n_classes, n_kernels, spatial_model=False)
 
+        optimizer_init = optimizer(m_init.parameters(), lr=lr)
+        for t in range(20):
+            logging.info(f"Epoch {t+1}\n-------------------------------")
+            train_loop(training_data, m_init, loss_fn, optimizer_init, l1_lambda, l2_lambda, print_freq)
+            val_loop(test_data, m_init, loss_fn)
+
+        logging.info("Initialisation Done.")
+        params_init = m_init.state_dict()
+
+        # copy m_init params into m
+        m.load_state_dict(params_init, strict=False)
+        
     optimizer = optimizer(m.parameters(), lr=lr)
     for t in range(n_epochs):
         logging.info(f"Epoch {t+1}\n-------------------------------")
         train_loop(training_data, m, loss_fn, optimizer, l1_lambda, l2_lambda, print_freq)
         val_loop(test_data, m, loss_fn)
 
-    logging.info("Training Done!")
+    logging.info("Training Done.")
     
     # save the model if requested 
     if model_save_path is not None:
@@ -170,22 +190,29 @@ def train_without_val(training_data,
     n_kernels = X.f.shape[0]
 
     # Define a model
-    if model == "Linear":
-        m = FlexibleClassifier(Linear(n_features, n_classes), n_classes=n_classes, 
-                                          n_kernels=n_kernels, is_crf=spatial_model)
-    elif model == "MLP":
-        m = FlexibleClassifier(MLP(n_features, 2, n_classes), n_classes=n_classes, 
-                                       n_kernels=n_kernels, is_crf=spatial_model)
-    else:
-        m = FlexibleClassifier(model, n_classes=n_classes, 
-                                   n_kernels=n_kernels, is_crf=spatial_model)
+    m = initialize_model(model, n_features, n_classes, n_kernels, spatial_model=spatial_model)
+    
+    # if requires a spatial model, first train a non-spatial one to initialise
+    if spatial_model:
+        m_init = initialize_model(model, n_features, n_classes, n_kernels, spatial_model=False)
 
+        optimizer_init = optimizer(m_init.parameters(), lr=lr)
+        for t in range(20):
+            logging.info(f"Epoch {t+1}\n-------------------------------")
+            train_loop(training_data, m_init, loss_fn, optimizer_init, l1_lambda, l2_lambda, print_freq)
+
+        logging.info("Initialisation Done.")
+        params_init = m_init.state_dict()
+
+        # copy m_init params into m
+        m.load_state_dict(params_init, strict=False)
+        
     optimizer = optimizer(m.parameters(), lr=lr)
     for t in range(n_epochs):
         logging.info(f"Epoch {t+1}\n-------------------------------")
         train_loop(training_data, m, loss_fn, optimizer, l1_lambda, l2_lambda, print_freq)
 
-    logging.info("Training Done!")
+    logging.info("Training Done.")
     
     # save the model if requested 
     if model_save_path is not None:
@@ -195,6 +222,7 @@ def train_without_val(training_data,
     return m
 
 
+# this is useless for now
 def train_with_val(training_data,
                    model="Linear",
                    loss_fn=nn.CrossEntropyLoss(), 
