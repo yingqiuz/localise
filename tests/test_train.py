@@ -40,12 +40,12 @@ def test_train():
 
     
 def test_train_without_val():
-    m = train_without_val(ShuffledDataLoader(batches), n_epochs=5, 
+    m = train_without_val(ShuffledDataLoader(batches), n_epochs=5, model="MLP",
                           model_save_path=os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth'))
     assert isinstance(m, FlexibleClassifier)
 
 
 def test_train_with_val():
-    m = train_with_val(ShuffledDataLoader(batches), n_epochs=5, 
+    m = train_with_val(ShuffledDataLoader(batches), n_epochs=5, model="MLP",
                           model_save_path=os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth'))
     assert isinstance(m, FlexibleClassifier)

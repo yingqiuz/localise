@@ -29,8 +29,17 @@ def train_loop(data, model, loss_fn, optimizer, lambda_l1, lambda_l2, print_freq
         loss = loss_fn(pred, y)
 
         # add L1 and L2 penalty
-        layer_weights = torch.stack([x for x in model.layer.parameters() if x.dim() > 1])
-        loss += lambda_l1 * torch.norm(layer_weights, 1) + lambda_l2 * torch.norm(layer_weights, 2)
+        l1 = 0
+        l2 = 0
+        for x in model.layer.parameters():
+            if x.dim() > 1:
+                l1 += torch.norm(x, 1)
+                l2 += torch.norm(x, 2)
+            
+        #layer_weights = torch.stack([x for x in model.layer.parameters() if x.dim() > 1])
+        #loss += lambda_l1 * torch.norm(layer_weights, 1) + lambda_l2 * torch.norm(layer_weights, 2)
+        loss += lambda_l1 * l1 + lambda_l2 * l2
+        
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
