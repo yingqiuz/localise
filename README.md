@@ -12,7 +12,47 @@ pip install .
 
 ## Usage
 
+### 1. **Preparation step**: generate connectivity features using tractography (either on high- or low-quality data)
+
+If you haven't done so, you may want to create anatomical masks and run tractography to generate connectivity features. If you have your own tract density maps, please skip to [2. Train a HQAugmentation Model](#2-train-a-hqaugmentation-model).
+
+#### 1.1 Create anatomical masks
+
+To create anatomical masks, you can either run the shell scripts under `/scripts` by
+
+```bash
+create_masks --ref=/path/to/t1.nii.gz --warp=/path/to/warp.nii.gz --out=/path/to/roi --aparc=/path/to/aparc.a2009s+aseg.nii.gz
+```
+
+where `--ref=t1.nii.gz` and `--warp=warp.nii.gz` are required arguments, specifying the reference image and the warp field that maps MNI 1mm space to the reference space. It is recommended to have your own cortical parcellation file `--aparc=aparc.a2009s+aseg.nii.gz`, otherwise standard ROIs will be employed. If the output directory is unspecified, it will create a folder called `roi` under the same directory as the reference image. More instructions can be found by typing `/path/to/HQAugmentation.jl/scripts/create_masks.sh --help`.
+
+#### 1.2 Create tract density maps (connectivity features)
+
+To create tract density maps, you can either run the following in command line
+
+```bash
+create_tract --samples=/path/to/data.bedpostX --inputdir=/path/to/roi/left --seed=/path/to/seed.nii.gz --out=/path/to/my_output_dir
+```
+
+where `--samples` and `--inputdir` are required arguments. You must specify the folder containing `merged_*samples.nii.gz` samples, e.g., the output directory from FSL's BedpostX. `--inputdir` is the directory that stores anatomical masks. If you don't specify the seed, it will use `tha.nii.gz` under the `inputdir`. More info can be found by typing `/path/to/HQAugmentation.jl/scripts/create_tract.sh --help`.
+
+You can also run this in julia by executing the following function:
+
+#### 1.3 Create connectivity-driven Vim
+
+If you have high-quality data, you may create "ground truth" location using the following connectivity-driven approach.
+
+```shell
+connectivity_driven --target1=seeds_to_m1.nii.gz --thr1=50 --target2=seeds_to_cerebellum.nii.gz --thr2=15 --out=label.nii.gz
+```
+
+will create connectivity-driven Vim.
+
 Subjects must be organised in the same file structure. Suppose your data is organised in this way:
+
+### 2. Localise a target
+
+#### 2.1 Command-line interface
 
 ```bash
 subject001/
@@ -40,19 +80,17 @@ subject002/
 subject003/
 ```
 
-### Command-line interface
-
 For a comprehensive list of available commands and options, enter:
 
 ```bash
 localise --help
 ```
 
-#### Prediction mode
+##### Prediction mode
 
 Use the prediction mode when you want to apply a pre-trained model to localise a particular target, such as the ventral intermediate nucleus of the thalamus (Vim). Ensure you've generated the required tract-density maps before starting.
 
-##### Example with Default Naming
+###### Example with Default Naming
 
 This example assumes your tract-density maps follow the naming convention of the default target list the model was trained with. Default target lists are available under `resources/data`. For Vim models, refer to `resources/data/vim_default_targets.txt`.
 
@@ -60,7 +98,7 @@ This example assumes your tract-density maps follow the naming convention of the
 localise --predict --structure=vim --subject=subj1001 --mask=roi/left/tha_small.nii.gz --target_path=streamlines/left --data_type=single32 --spatial --out=predictions.nii.gz
 ```
 
-##### Example with Custom Naming
+###### Example with Custom Naming
 
 If your tract-density maps use a different naming scheme, you can provide your own target list. Additionally, you can input a text file containing paths to multiple subjects. Make sure they are in the same order as the `resources/data/vim_default_targets.txt`.
 
@@ -68,7 +106,7 @@ If your tract-density maps use a different naming scheme, you can provide your o
 localise --predict --structure=vim --subject=subjs.txt --mask=roi/left/tha_small.nii.gz --target_path=streamlines/left --target_list=your_target_list.txt --data_type=single32 --spatial --out=predictions.nii.gz
 ```
 
-##### Using a Custom Model
+###### Using a Custom Model
 
 If you don't want to use the pre-trained default model, and you've trained your own model `your_trained_model.pth` using a specific target list `your_target_list.txt` (see [Train mode](#train-mode) for custom training), you can use the following:
 
@@ -76,7 +114,7 @@ If you don't want to use the pre-trained default model, and you've trained your 
 localise --predict --subject=subjs.txt --mask=roi/left/tha_small.nii.gz --model=your_trained_model.pth --target_path=streamlines/left --target_list=your_target_list.txt --spatial --out=predictions.nii.gz
 ```
 
-#### Train mode
+##### Train mode
 
 Use the training mode when you want to train a custom model with a specific target list. Ensure you possess the required labels that serve as ground truth during the training process.
 
@@ -88,7 +126,7 @@ localise --train --subject=training_subjs.txt --mask=roi/left/tha_small.nii.gz -
 
 Once trained, your custom model (your_trained_model.pth) can be applied to new, unseen subjects, as showcased in the [Prediction mode](#prediction-mode) section.
 
-### Python interface
+#### 2.2 Python interface
 
 You can also train a model or localise for unseen subjects using the python interface.
 
