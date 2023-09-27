@@ -14,7 +14,7 @@ pip install .
 
 ### 1. **Preparation step**: generate connectivity features using tractography (either on high- or low-quality data)
 
-If you haven't done so, you may want to create anatomical masks and run tractography to generate connectivity features. If you have your own tract density maps, please skip to [2. Train a HQAugmentation Model](#2-train-a-hqaugmentation-model).
+If you haven't done so, you may want to create anatomical masks and run tractography to generate connectivity features. If you have your own tract density maps, please skip to [2. Localise a target](#2-localise-a-target).
 
 #### 1.1 Create anatomical masks
 
