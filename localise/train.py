@@ -130,7 +130,7 @@ def train(training_data, test_data,
         m_init = initialize_model(model, n_features, n_classes, n_kernels, spatial_model=False)
 
         optimizer_init = optimizer(m_init.parameters(), lr=lr)
-        for t in range(20):
+        for t in range(10):
             logging.info(f"Epoch {t+1}\n-------------------------------")
             train_loop(training_data, m_init, loss_fn, optimizer_init, l1_lambda, l2_lambda, print_freq)
             val_loop(test_data, m_init, loss_fn)
@@ -206,7 +206,7 @@ def train_without_val(training_data,
         m_init = initialize_model(model, n_features, n_classes, n_kernels, spatial_model=False)
 
         optimizer_init = optimizer(m_init.parameters(), lr=lr)
-        for t in range(20):
+        for t in range(10):
             logging.info(f"Epoch {t+1}\n-------------------------------")
             train_loop(training_data, m_init, loss_fn, optimizer_init, l1_lambda, l2_lambda, print_freq)
 
