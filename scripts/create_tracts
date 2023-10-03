@@ -224,7 +224,7 @@ cmd="$cmd --targetmasks=$inputdir/targets.txt"
 cmd="$cmd --avoid=$inputdir/cerebellum --stop=$inputdir/cortex"
 
 ### run tractography...
-echo $cmd;
+echo $cmd > $out/create_tracts_cmds;
 eval $cmd;
 
 echo $inputdir/scpct_mask{1..15}.nii.gz > $inputdir/targets.txt;
@@ -232,6 +232,6 @@ echo $inputdir/cerebellum_target.nii.gz >> $inputdir/targets.txt;
 cmd="$FSLDIR/bin/$prog $opts"
 cmd="$cmd --targetmasks=$inputdir/targets.txt"
 cmd="$cmd --avoid=$inputdir/exclusion --stop=$inputdir/stop_for_scpct"
-echo $cmd;
+echo $cmd >> $out/create_tracts_cmds;
 eval $cmd;
 
