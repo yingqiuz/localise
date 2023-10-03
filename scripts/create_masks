@@ -257,7 +257,7 @@ if [ -z "$queue" ]; then
   bash $out/create_masks_cmds
   bash $out/create_masks_scpct_cmds
 else
-  fsl_sub -q $queue -t $out/create_masks_cmds
-  fsl_sub -q $queue $out/create_masks_scpct_cmds
+  fsl_sub -q $queue -N create_masks -t $out/create_masks_cmds
+  fsl_sub -q $queue -N create_masks_scpct "$out/create_masks_scpct_cmds"
   echo "jobs submitted."
 fi
