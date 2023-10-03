@@ -1,4 +1,4 @@
-import os, logging
+import os, logging, subprocess
 import numpy as np
 import nibabel as nib
 from pathlib import Path
@@ -198,3 +198,115 @@ def train_mode(subject, mask, label, target_path=None,
     
     return model
 
+
+def create_masks(ref, warp, out=None, aparc=None, brainmask=None):
+    """
+    Create masks based on provided parameters.
+    
+    Parameters:
+    - ref (str): Reference string.
+    - warp (str): Warp string.
+    - out (Optional[str]): Output string. Defaults to None.
+    - aparc (Optional[str]): Aparc string. Defaults to None.
+    - brainmask (Optional[str]): Brainmask string. Defaults to None.
+    
+    Raises:
+    - ValueError: If required environment variables or files are missing.
+    """
+    if "FSLDIR" not in os.environ:
+        raise ValueError("FSLDIR environment variable does not exist.")
+    if not os.path.isfile(ref):
+        raise ValueError(f"{ref} does not exist.")
+    if not os.path.isfile(warp):
+        raise ValueError(f"{warp} does not exist.")
+    
+    cmd = os.path.join(PKG_PATH, "scripts", "create_masks.sh")
+    args = [cmd, f"--ref={ref}", f"--warp={warp}"]
+    
+    params = [("out", out), ("aparc", aparc), ("brainmask", brainmask)]
+    for param, value in params:
+        if value is not None:
+            args.append(f"--{param}={value}")
+    
+    subprocess.run(args)
+
+
+def create_tracts(samples_dir, input_dir, seed=None, xfm=None, ref=None, 
+                  out=None, brainmask=None, nsteps=None, cthr=None, 
+                  fibthresh=None, nsamples=None, steplength=None, 
+                  sampvox=None, distthresh=None, gpu=True):
+    """
+    Create tracts based on provided parameters.
+    
+    Parameters are described in the function signature.
+    
+    Raises:
+    - ValueError: If required environment variables or directories are missing.
+    """
+    
+    if "FSLDIR" not in os.environ:
+        raise ValueError("FSLDIR environment variable is missing.")
+    if not os.path.isdir(samples_dir):
+        raise ValueError(f"Directory '{samples_dir}' is missing.")
+    if not os.path.isdir(input_dir):
+        raise ValueError(f"Directory '{input_dir}' is missing.")
+    
+    cmd = os.path.join(PKG_PATH, "scripts", "create_tracts.sh")
+    args = [cmd, f"--samples={samples_dir}", f"--inputdir={input_dir}"]
+    
+    params = [
+        ("out", out), 
+        ("seed", seed), 
+        ("xfm", xfm), 
+        ("ref", ref), 
+        ("brainmask", brainmask),
+        ("nsteps", nsteps),
+        ("cthr", cthr),
+        ("fibthresh", fibthresh),
+        ("nsamples", nsamples),
+        ("steplength", steplength),
+        ("sampvox", sampvox),
+        ("distthresh", distthresh)
+    ]
+    for param, value in params:
+        if value is not None:
+            args.append(f"--{param}={value}")
+    
+    if gpu:
+        args.append("--gpu")
+    
+    subprocess.run(args)
+
+
+def connectivity_driven(target1, target2, out, target3=None, 
+                        thr1=None, thr2=None, thr3=None, thr=None):
+    """
+    Perform a connectivity-driven analysis using two or three target images.
+
+    Parameters are described in the function signature.
+    
+    Raises:
+    - ValueError: If required environment variables or directories are missing.
+    """
+    if "FSLDIR" not in os.environ:
+        raise ValueError("FSLDIR environment variable is missing.")
+    if not os.path.isfile(target1):
+        raise ValueError(f"{target1} does not exist.")
+    if not os.path.isfile(target2):
+        raise ValueError(f"{target2} does not exist.")
+    
+    cmd = os.path.join(PKG_PATH, "scripts", "connectivity_driven.sh")
+    args = [cmd, f"--target1={target1}", f"--target2={target2}", f"--out={out}"]
+    
+    params = [
+        ("thr1", thr1),
+        ("thr2", thr2),
+        ("thr3", thr3),
+        ("target3", target3),
+        ("thr", thr)
+    ]
+    for param, value in params:
+        if value is not None:
+            args.append(f"--{param}={value}")
+    
+    subprocess.run(args)
