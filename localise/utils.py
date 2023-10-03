@@ -220,7 +220,7 @@ def create_masks(ref, warp, out=None, aparc=None, brainmask=None):
     if not os.path.isfile(warp):
         raise ValueError(f"{warp} does not exist.")
     
-    cmd = os.path.join(PKG_PATH, "scripts", "create_masks.sh")
+    cmd = os.path.join(PKG_PATH, "scripts", "create_masks")
     args = [cmd, f"--ref={ref}", f"--warp={warp}"]
     
     params = [("out", out), ("aparc", aparc), ("brainmask", brainmask)]
@@ -251,7 +251,7 @@ def create_tracts(samples_dir, input_dir, seed=None, xfm=None, ref=None,
     if not os.path.isdir(input_dir):
         raise ValueError(f"Directory '{input_dir}' is missing.")
     
-    cmd = os.path.join(PKG_PATH, "scripts", "create_tracts.sh")
+    cmd = os.path.join(PKG_PATH, "scripts", "create_tracts")
     args = [cmd, f"--samples={samples_dir}", f"--inputdir={input_dir}"]
     
     params = [
@@ -295,7 +295,7 @@ def connectivity_driven(target1, target2, out, target3=None,
     if not os.path.isfile(target2):
         raise ValueError(f"{target2} does not exist.")
     
-    cmd = os.path.join(PKG_PATH, "scripts", "connectivity_driven.sh")
+    cmd = os.path.join(PKG_PATH, "scripts", "connectivity_driven")
     args = [cmd, f"--target1={target1}", f"--target2={target2}", f"--out={out}"]
     
     params = [
