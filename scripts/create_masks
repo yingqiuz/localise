@@ -13,6 +13,7 @@ Usage() {
     echo "--out (optional, the output directory to store the anatomical masks. if not provided, create a folder called roi in the same directory as the reference image)"
     echo "--aparc (optional, the cortical segmentation file from Freesurfer, either in *.mgz or *.nii.gz/*.nii - it is strongly recommended to have this file)"
     echo "--brainmask (optional, the binary brain mask in the reference space)"
+    echo "--queue (optional, the queue jobs should be submitted to. Run locally if not specified.)"
     echo ""
     echo ""
     exit 1
@@ -74,6 +75,10 @@ do
     brainmask="${arg#*=}"
     shift
     ;;
+    --queue=*)
+    queue="${arg#*=}"
+    shift
+    ;;
     *)
     echo "Unknown option: $arg"
     Usage
@@ -101,6 +106,16 @@ elif [ ! -f $warp ]; then
   exit 1
 fi
 
+if [ ! -z "$queue" ]; then
+  if which fsl_sub > /dev/null 2>&1; then
+    echo "Queue specified. Will submit jobs to $queue."
+  else
+    echo "fsl_sub is not installed. Will run jobs locally."
+    #exit 1
+    queue=""
+  fi
+fi
+
 if [ -z "$out" ]; then
   out=$(dirname $refpath)/roi
   echo "output directory not specified. create $out to store anatomical masks in reference space"
@@ -116,12 +131,6 @@ for hemi in left right; do
     mkdir $out/$hemi
   fi
 done
-
-### if brain mask not provided, use standard
-if [ -z "$brainmask" ]; then
-  echo "brainmask not provided. use standard brain mask MNI152_T1_1mm_brain_mask instead..."
-  $FSLDIR/bin/applywarp -r $ref -i $FSLDIR/data/standard/MNI152_T1_1mm_brain_mask -w $warp -o $out/brain_mask --interp=nn
-fi
 
 if [ ! -z "$aparc" ]; then
   aparc_basename=$(basename "$aparc")
@@ -141,91 +150,114 @@ if [ ! -z "$aparc" ]; then
     exit 1
   fi
   #### cerebellum
-  $FSLDIR/bin/fslmaths $aparc -thr 6 -uthr 8 -bin $out/left/cerebellum
-  $FSLDIR/bin/fslmaths $aparc -thr 45 -uthr 47 -bin $out/right/cerebellum
-  $FSLDIR/bin/fslmaths $aparc -thr 7 -uthr 7 -bin $out/right/cerebellum_target
-  $FSLDIR/bin/fslmaths $aparc -thr 46 -uthr 46 -bin $out/left/cerebellum_target
-  $FSLDIR/bin/fslmaths $aparc -thr 24 -uthr 24 -bin $out/csf
+  echo "echo Create cerebellar ROIs based on the provided $aparc file..." > $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 6 -uthr 8 -bin $out/left/cerebellum" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 45 -uthr 47 -bin $out/right/cerebellum" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 7 -uthr 7 -bin $out/right/cerebellum_target" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 46 -uthr 46 -bin $out/left/cerebellum_target" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 24 -uthr 24 -bin $out/csf" >> $out/create_masks_cmds
   ### left hemisphere cortical masks
+  echo "echo Create left hemisphere cortical ROIs based on the provided $aparc file..." >> $out/create_masks_cmds
   for k in {11101..11175}; do
     kk=`expr $k - 11100`
-    $FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/left/$kk
+    echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/left/$kk" >> $out/create_masks_cmds
   done
-  $FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/left/cortex
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/left/cortex" >> $out/create_masks_cmds
   ### right hemisphere cortical masks
+  echo "echo Create right hemisphere cortical ROIs based on the provided $aparc file..." >> $out/create_masks_cmds
   for k in {12101..12175}; do
     kk=`expr $k - 12100`
-    $FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/right/$kk
+    echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/right/$kk" >> $out/create_masks_cmds
   done
-  $FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/right/cortex
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/right/cortex" >> $out/create_masks_cmds
 fi
 
 #$FSLDIR/bin/fslmaths $out/right/cortex -add $out/left/cortex -bin $out/cortex
 
 for hemi in left right; do
-  echo "create masks for $hemi hemisphere..."
-  echo " "
+  echo "echo Create masks for $hemi hemisphere..." >> $out/create_masks_cmds
   ### create white matter masks - SCPCT tract
   for tract in scpct_mask{1..15}; do
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
   done
   ### STR
   for tract in str_mask{1..10}; do
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
   done
   ### ATR
   for tract in atr_mask{1..8}; do
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
   done
   ### AR
   for tract in ar_mask{1..8}; do
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
   done
   ### OR
   for tract in or_mask{1..10}; do
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
   done
   ### fornix
   for tract in fx_mask{1..10}; do
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
   done
   ### M1
   for tract in to_precentral_mask{1..12}; do
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
   done
   ### S1
   for tract in to_postcentral_mask{1..12}; do
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
   done
 
   ### thalamus - although it's recommend to use FSL's MIST
-  $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/tha -w $warp -o $out/$hemi/tha --interp=nn
+  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/tha -w $warp -o $out/$hemi/tha --interp=nn" >> $out/create_masks_cmds
 
-  ### SCPCT
-  $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/SCPCT -w $warp -o $out/$hemi/SCPCT
-  $FSLDIR/bin/fslmaths $out/$hemi/SCPCT -thr 0.0001 -bin $out/$hemi/SCPCT_bin
+  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/vim -w $warp -o $out/$hemi/vim" >> $out/create_masks_cmds
 
-  $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/vim -w $warp -o $out/$hemi/vim
-
-  $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/exclusion -w $warp -o $out/$hemi/exclusion --interp=nn
+  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/exclusion -w $warp -o $out/$hemi/exclusion --interp=nn" >> $out/create_masks_cmds
 
   if [ -z "$aparc" ]; then
     ### cerebellum - although it's recommend to use freesurfer's segmentation
     ##### MNI_roi/$hemi/cerebellum_target is the contralateral cerebellar target
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/cerebellum_target -w $warp -o $out/$hemi/cerebellum_target --interp=nn
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/cerebellum_target -w $warp -o $out/$hemi/cerebellum_target --interp=nn" >> $out/create_masks_cmds
     ##### MNI_roi/$hemi/cerebellum is ipsilateral cerebellum to avoid
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/cerebellum -w $warp -o $out/$hemi/cerebellum --interp=nn
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/cerebellum -w $warp -o $out/$hemi/cerebellum --interp=nn" >> $out/create_masks_cmds
     ### cortical parcels - if no aparc.a2009s+aseg file is provided
     for k in {1..75}; do
-      $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$k -w $warp -o $out/$hemi/$k --interp=nn
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$k -w $warp -o $out/$hemi/$k --interp=nn" >> $out/create_masks_cmds
     done
-    $FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/cortex -w $warp -o $out/$hemi/cortex --interp=nn
-  fi
-
-  ### if brain mask not provided, use standard
-  if [ -z "$brainmask" ]; then
-    $FSLDIR/bin/fslmaths $out/brain_mask -rem $out/$hemi/SCPCT_bin -bin -rem $out/$hemi/tha -bin $out/$hemi/stop_for_scpct
-  else
-    $FSLDIR/bin/fslmaths $brainmask -rem $out/$hemi/SCPCT_bin -bin -rem $out/$hemi/tha -bin $out/$hemi/stop_for_scpct
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/cortex -w $warp -o $out/$hemi/cortex --interp=nn" >> $out/create_masks_cmds
   fi
 done
+
+# SCPCT-related ROIs
+echo "echo Create SCPCT-related ROIs..." > $out/create_masks_scpct_cmds
+
+### if brain mask not provided, use standard
+if [ -z "$brainmask" ]; then
+  echo "echo brainmask not provided. use standard brain mask MNI152_T1_1mm_brain_mask instead..." >> $out/create_masks_scpct_cmds
+  echo "$FSLDIR/bin/applywarp -r $ref -i $FSLDIR/data/standard/MNI152_T1_1mm_brain_mask -w $warp -o $out/brain_mask --interp=nn" >> $out/create_masks_scpct_cmds
+  brainmask="$out/brain_mask"
+fi
+
+for hemi in left right; do
+  ### SCPCT
+  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/SCPCT -w $warp -o $out/$hemi/SCPCT" >> $out/create_masks_scpct_cmds
+  echo "$FSLDIR/bin/fslmaths $out/$hemi/SCPCT -thr 0.0001 -bin $out/$hemi/SCPCT_bin" >> $out/create_masks_scpct_cmds
+  ### if brain mask not provided, use standard
+  #if [ -z "$brainmask" ]; then
+    #echo "$FSLDIR/bin/fslmaths $out/brain_mask -rem $out/$hemi/SCPCT_bin -bin -rem $out/$hemi/tha -bin $out/$hemi/stop_for_scpct" >> $out/create_masks_scpct_cmds
+  #else
+  echo "$FSLDIR/bin/fslmaths $brainmask -rem $out/$hemi/SCPCT_bin -bin -rem $out/$hemi/tha -bin $out/$hemi/stop_for_scpct" >> $out/create_masks_scpct_cmds
+  #fi
+done
+
+# execute locally or submit the jobs...
+if [ -z "$queue" ]; then
+  bash $out/create_masks_cmds
+  bash $out/create_masks_scpct_cmds
+else
+  fsl_sub -q $queue -t $out/create_masks_cmds
+  fsl_sub -q $queue $out/create_masks_scpct_cmds
+  echo "jobs submitted."
+fi
