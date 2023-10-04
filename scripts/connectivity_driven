@@ -16,6 +16,7 @@ Usage() {
     echo "--thr2                     Threshold on target2 tract density - default 50%"
     echo "--thr3                     Optional, threshold on target3 tract density - default 50%"
     echo "--thr                      Optional, the final threshold to be applied on the product map - default 70%"
+    echo "--queue                    Optional, the queue jobs should be submitted to. Run locally if not specified."
     echo ""
     echo ""
     exit 1
@@ -69,6 +70,10 @@ do
     thr="${arg#*=}"
     shift
     ;;
+    --queue=*)
+    queue="${arg#*=}"
+    shift
+    ;;
     *)
     echo "Unknown option: $arg"
     Usage
@@ -119,6 +124,16 @@ if [ -z "$out" ]; then
   exit 1
 fi
 
+if [ ! -z "$queue" ]; then
+  if which fsl_sub > /dev/null 2>&1; then
+    echo "Queue specified. Will submit jobs to $queue."
+  else
+    echo "fsl_sub is not installed. Will run jobs locally."
+    #exit 1
+    queue=""
+  fi
+fi
+
 outdir=$(dirname $out)
 
 $FSLDIR/bin/fslmaths $target1 -thrP $thr1 $outdir/target1_thrP${thr1}
@@ -130,6 +145,10 @@ if [ ! -z "$target3" ]; then
 fi
 
 cmd="$cmd -thrP $thr -bin $out"
-eval $cmd
+if [ -z "$queue" ]; then
+  eval $cmd
+else
+  fsl_sub -q $queue -N connectivity_driven -l $outdir $cmd
+fi
 #$FSLDIR/bin/fslmaths $outdir/target1_thrP${thr1} -mul $outdir/target2_thrP${thr2} -thrP $thr -bin $out
 
