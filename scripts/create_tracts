@@ -24,6 +24,7 @@ Usage() {
     echo "--sampvox       Optional, sample random points within a sphere with radius x mm from the center of the seed voxels"
     echo "--distthresh    Optional, discards samples shorter than this threshold (in mm - default=0)"
     echo "--gpu           Optional, use the gpu version of probtractx2"
+    echo "--queue         Optional, the queue jobs should be submitted to. Run locally if not specified."
     exit 1
 }
 
@@ -139,6 +140,10 @@ do
     prog="probtrackx2_gpu"
     shift
     ;;
+    --queue=*)
+    queue="${arg#*=}"
+    shift
+    ;;
     *)
     echo "Unknown option: $arg"
     Usage
@@ -168,6 +173,15 @@ fi
   #echo "Error: Missing required argument --hemi, left or right"
   #exit 1
 #fi
+if [ ! -z "$queue" ]; then
+  if which fsl_sub > /dev/null 2>&1; then
+    echo "Queue specified. Will submit jobs to $queue."
+  else
+    echo "fsl_sub is not installed. Will run jobs locally."
+    #exit 1
+    queue=""
+  fi
+fi
 
 if [ -z "$out" ]; then
   out=$refpath/streamlines
@@ -225,7 +239,7 @@ cmd="$cmd --avoid=$inputdir/cerebellum --stop=$inputdir/cortex"
 
 ### run tractography...
 echo $cmd > $out/create_tracts_cmds;
-eval $cmd;
+#eval $cmd;
 
 echo $inputdir/scpct_mask{1..15}.nii.gz > $inputdir/targets.txt;
 echo $inputdir/cerebellum_target.nii.gz >> $inputdir/targets.txt;
@@ -233,5 +247,14 @@ cmd="$FSLDIR/bin/$prog $opts"
 cmd="$cmd --targetmasks=$inputdir/targets.txt"
 cmd="$cmd --avoid=$inputdir/exclusion --stop=$inputdir/stop_for_scpct"
 echo $cmd >> $out/create_tracts_cmds;
-eval $cmd;
+#eval $cmd;
+if [ -z "$queue" ]; then
+  bash $out/create_tracts_cmds
+else
+  if gpu; then
+    fsl_sub -q $queue -c cuda -N create_tracts -l $out -t $out/create_tracts_cmds
+  else
+    fsl_sub -q $queue -N create_tracts -l $out -t $out/create_tracts_cmds
+  fi
+fi
 
