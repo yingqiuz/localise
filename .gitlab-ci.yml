@@ -1,8 +1,18 @@
-image: python:3.9
+image: python:latest
 
 stages:
   - build
   - test
+
+pages:
+  script:
+  - pip install sphinx
+  - cd docs
+  - make html
+  - mv build/html public
+  artifacts:
+    paths:
+    - public
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
