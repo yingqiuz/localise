@@ -10,10 +10,11 @@ Usage() {
     echo "<options>:"
     echo "--ref (the reference image, usually in the individual T1 native space)"
     echo "--warp (the warp field that maps the MNI standard space to individual T1 space)"
+    echo "--aparc (the cortical segmentation file from Freesurfer, either in *.mgz or *.nii.gz/*.nii)"
     echo "--out (optional, the output directory to store the anatomical masks. if not provided, create a folder called roi in the same directory as the reference image)"
-    echo "--aparc (optional, the cortical segmentation file from Freesurfer, either in *.mgz or *.nii.gz/*.nii - it is strongly recommended to have this file)"
     echo "--brainmask (optional, the binary brain mask in the reference space)"
     echo "--queue (optional, the queue jobs should be submitted to. Run locally if not specified.)"
+    echo "--njobs (optional, the number of jobs to run in parallel locally.)"
     echo ""
     echo ""
     exit 1
@@ -48,6 +49,9 @@ get_abs_file_path() {
     echo "$abs_path"
 }
 
+# default njobs
+njobs=1
+
 ### parse arguments
 for arg in "$@"
 do
@@ -79,6 +83,10 @@ do
     queue="${arg#*=}"
     shift
     ;;
+    --queue=*)
+    njobs="${arg#*=}"
+    shift
+    ;;
     *)
     echo "Unknown option: $arg"
     Usage
@@ -103,6 +111,14 @@ if [ -z "$warp" ]; then
   exit 1
 elif [ ! -f $warp ]; then
   echo "Error: $warp not exist"
+  exit 1
+fi
+
+if [ -z "$aparc" ]; then
+  echo "Error: Missing required argument --aparc"
+  exit 1
+elif [ ! -f $aparc ]; then
+  echo "Error: $aparc not exist"
   exit 1
 fi
 
