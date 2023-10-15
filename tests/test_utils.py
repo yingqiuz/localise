@@ -1,7 +1,9 @@
 import os, pytest
 import numpy as np
+import subprocess
 from localise.utils import save_nifti, save_nifti_4D, get_subjects
 from localise.utils import predict_mode, train_mode
+from localise.utils import run_command
 from pathlib import Path
 import nibabel as nib
 
@@ -96,7 +98,6 @@ def test_predict_mode():
     assert os.path.isfile(os.path.join(subject, out))
     os.remove(os.path.join(subject, out))
 
-
 def test_train_mode():
     subject = f'{path_to_data}/100206'
     mask = 'roi/left/tha_small.nii.gz'
@@ -111,3 +112,11 @@ def test_train_mode():
     
     assert os.path.isfile(out_model)
     os.remove(out_model)
+    
+def test_run_command():
+    """Test that a valid command runs without errors."""
+    cmd = ["echo", "Hello, World!"]
+    try:
+        run_command(cmd)
+    except subprocess.CalledProcessError:
+        pytest.fail("run_command raised an error for a valid command")

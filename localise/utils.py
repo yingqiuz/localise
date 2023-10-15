@@ -1,6 +1,7 @@
 import os, logging, subprocess
 import numpy as np
 import nibabel as nib
+import subprocess
 from pathlib import Path
 from localise.load import load_data, load_features, ShuffledDataLoader
 from localise.train import train, train_with_val, train_without_val
@@ -8,6 +9,7 @@ from localise.predict import apply_pretrained_model
 
 
 PKG_PATH = Path(__file__).parent.parent
+
 
 def save_nifti(data, mask_file, output_file):
     """
@@ -228,7 +230,7 @@ def create_masks(ref, warp, out=None, aparc=None, brainmask=None):
         if value is not None:
             args.append(f"--{param}={value}")
     
-    subprocess.run(args)
+    run_command(args)
 
 
 def create_tracts(samples_dir, input_dir, seed=None, xfm=None, ref=None, 
@@ -275,7 +277,7 @@ def create_tracts(samples_dir, input_dir, seed=None, xfm=None, ref=None,
     if gpu:
         args.append("--gpu")
     
-    subprocess.run(args)
+    run_command(args)
 
 
 def connectivity_driven(target1, target2, out, target3=None, 
@@ -309,4 +311,8 @@ def connectivity_driven(target1, target2, out, target3=None,
         if value is not None:
             args.append(f"--{param}={value}")
     
-    subprocess.run(args)
+    run_command(args)
+    
+
+def run_command(cmd):
+    subprocess.run(cmd, check=True)
