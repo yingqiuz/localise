@@ -159,8 +159,8 @@ if [ ! -z "$aparc" ]; then
     $FSLDIR/bin/flirt -in $out/${aparc_basename%.*}.nii.gz -ref $ref -out $out/${aparc_basename%.*}.nii.gz -applyxfm -usesqform -interp nearestneighbour
     aparc="$out/${aparc_basename%.*}.nii.gz"
   elif [[ "$aparc" == *.nii ]] || [[ "$aparc" == *.nii.gz ]]; then
-    $FSLDIR/bin/flirt -in $aparc -ref $ref -out $out/$aparc_basename -applyxfm -usesqform -interp nearestneighbour 
-    aparc="$out/$aparc_basename"
+    $FSLDIR/bin/flirt -in $aparc -ref $ref -out $out/${aparc_basename%.*}.nii.gz -applyxfm -usesqform -interp nearestneighbour 
+    aparc="$out/${aparc_basename%.*}.nii.gz"
   else
     echo "Invalid aparc.a2009s+aseg file. Please use *.mgz or *.nii.gz/*.nii file."
     exit 1
