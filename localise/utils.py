@@ -315,4 +315,8 @@ def connectivity_driven(target1, target2, out, target3=None,
     
 
 def run_command(cmd):
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+        print(f"Command {' '.join(cmd)} executed successfully.")
+    except subprocess.CalledProcessError:
+        print(f"Error executing command: {' '.join(cmd)}")
