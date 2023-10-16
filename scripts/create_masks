@@ -251,7 +251,7 @@ echo "echo Create SCPCT-related ROIs..." > $out/create_masks_scpct_cmds
 
 ### if brain mask not provided, use standard
 if [ -z "$brainmask" ]; then
-  echo "echo brainmask not provided. use standard brain mask MNI152_T1_1mm_brain_mask instead..." >> $out/create_masks_scpct_cmds
+  #echo "echo brainmask not provided. use standard brain mask MNI152_T1_1mm_brain_mask instead..." >> $out/create_masks_scpct_cmds
   echo "$FSLDIR/bin/applywarp -r $ref -i $FSLDIR/data/standard/MNI152_T1_1mm_brain_mask -w $warp -o $out/brain_mask --interp=nn" >> $out/create_masks_scpct_cmds
   brainmask="$out/brain_mask"
 fi
