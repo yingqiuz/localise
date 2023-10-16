@@ -270,10 +270,14 @@ done
 
 # execute locally or submit the jobs...
 if [ -z "$queue" ]; then
-  bash $out/create_masks_cmds
-  bash $out/create_masks_scpct_cmds
+  if [[ $njobs -eq 1 ]]; then
+    bash "$out/create_masks_cmds"
+  else
+    "$SCRIPT_DIR/run_parallel" "$out/create_masks_cmds" $njobs
+  fi
+  bash "$out/create_masks_scpct_cmds"
 else
-  fsl_sub -q $queue -N create_masks -l $out -t $out/create_masks_cmds
+  fsl_sub -q $queue -N create_masks -l $out -t "$out/create_masks_cmds"
   fsl_sub -q $queue -N create_masks_scpct -l $out "$out/create_masks_scpct_cmds"
   echo "jobs submitted."
 fi
