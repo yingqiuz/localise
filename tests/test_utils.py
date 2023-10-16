@@ -6,6 +6,7 @@ from localise.utils import predict_mode, train_mode
 from localise.utils import run_command
 from pathlib import Path
 import nibabel as nib
+from unittest.mock import patch
 
 
 path_to_data = Path(__file__).parent / 'test_data'
@@ -114,9 +115,13 @@ def test_train_mode():
     os.remove(out_model)
     
 def test_run_command():
-    """Test that a valid command runs without errors."""
-    cmd = ["echo", "Hello, World!"]
-    try:
-        run_command(cmd)
-    except subprocess.CalledProcessError:
-        pytest.fail("run_command raised an error for a valid command")
+    # Test successful command execution
+    with patch('subprocess.run') as mock_run:
+        run_command(['echo', 'hello'])
+        mock_run.assert_called_once_with(['echo', 'hello'], check=True)
+
+    # Test unsuccessful command execution
+    with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'bad_cmd')) as mock_run:
+        run_command(['bad_cmd'])
+        mock_run.assert_called_once_with(['bad_cmd'], check=True)
+    
