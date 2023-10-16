@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+
+import sys
+import subprocess
+from concurrent.futures import ProcessPoolExecutor
+
+
+def run_command(cmd):
+    subprocess.run(cmd, shell=True)
+
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: run_parallel <path_to_commands_file>")
+        sys.exit(1)
+
+    commands_file = sys.argv[1]
+    num_parallel_jobs = int(sys.argv[2])
+
+    with open(commands_file, "r") as f:
+        commands = [line.strip() for line in f]
+
+    with ProcessPoolExecutor(max_workers=num_parallel_jobs) as executor:
+        executor.map(run_command, commands)
+
+if __name__ == "__main__":
+    main()
