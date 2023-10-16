@@ -9,7 +9,7 @@ def run_command(cmd):
     subprocess.run(cmd, shell=True)
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print("Usage: run_parallel <path_to_commands_file>")
         sys.exit(1)
 
