@@ -1,0 +1,283 @@
+#!/bin/bash
+
+Usage() {
+    echo ""
+    echo "Usage: ./create_masks.sh --ref=t1.nii.gz --warp=standard2str.nii.gz --out=outputdir --aparc=aparc.a2009s+aseg.nii.gz"
+    echo ""
+    echo "creates anatomical masks in reference space (--ref) for tractography and stores them in the output dir (--out)"
+    echo "if the cortical parcellation file (--aparc) not provided, uses standard masks instead"
+    echo ""
+    echo "<options>:"
+    echo "--ref (the reference image, usually in the individual T1 native space)"
+    echo "--warp (the warp field that maps the MNI standard space to individual T1 space)"
+    echo "--aparc (the cortical segmentation file from Freesurfer, either in *.mgz or *.nii.gz/*.nii)"
+    echo "--out (optional, the output directory to store the anatomical masks. if not provided, create a folder called roi in the same directory as the reference image)"
+    echo "--brainmask (optional, the binary brain mask in the reference space)"
+    echo "--queue (optional, the queue jobs should be submitted to. Run locally if not specified.)"
+    echo "--njobs (optional, the number of jobs to run in parallel locally.)"
+    echo ""
+    echo ""
+    exit 1
+}
+
+[ "$1" = "" ] && Usage
+
+if [ -z "$FSLDIR" ]; then
+  echo "Environment variable $FSLDIR does not exist. Please set up FSLDIR. "
+  exit 1
+fi
+
+## path of the script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+RESOURCES_DIR="$(dirname $SCRIPT_DIR)/resources"
+
+### make file path absolute
+get_abs_file_path() {
+    file_path=$1
+
+    # Check if realpath is available
+    if command -v realpath > /dev/null 2>&1; then
+        abs_path=$(realpath "$file_path")
+    # Fallback to readlink -f if realpath is not available
+    elif command -v readlink > /dev/null 2>&1; then
+        abs_path=$(readlink -f "$file_path")
+    else
+        echo "Error: realpath and readlink commands are not available."
+        return 1
+    fi
+
+    echo "$abs_path"
+}
+
+# default njobs
+njobs=1
+
+### parse arguments
+for arg in "$@"
+do
+  case $arg in
+    --help)
+    Usage
+    ;;
+    --ref=*)
+    ref="${arg#*=}"
+    shift
+    ;;
+    --out=*)
+    out="${arg#*=}"
+    shift
+    ;;
+    --warp=*)
+    warp="${arg#*=}"
+    shift
+    ;;
+    --aparc=*)
+    aparc="${arg#*=}"
+    shift
+    ;;
+    --brainmask=*)
+    brainmask="${arg#*=}"
+    shift
+    ;;
+    --queue=*)
+    queue="${arg#*=}"
+    shift
+    ;;
+    --njobs=*)
+    njobs="${arg#*=}"
+    shift
+    ;;
+    *)
+    echo "Unknown option: $arg"
+    Usage
+    exit 1
+    ;;
+  esac
+done
+
+### Check if required arguments are provided
+if [ -z "$ref" ]; then
+  echo "Error: Missing required argument --ref"
+  exit 1
+elif [ ! -f $ref ]; then
+  echo "Error: $ref not exist"
+  exit 1
+else
+  refpath=$(get_abs_file_path "$ref")
+fi
+
+if [ -z "$warp" ]; then
+  echo "Error: Missing required argument --warp"
+  exit 1
+elif [ ! -f $warp ]; then
+  echo "Error: $warp not exist"
+  exit 1
+fi
+
+if [ -z "$aparc" ]; then
+  echo "Error: Missing required argument --aparc"
+  exit 1
+elif [ ! -f $aparc ]; then
+  echo "Error: $aparc not exist"
+  exit 1
+fi
+
+if [ ! -z "$queue" ]; then
+  if which fsl_sub > /dev/null 2>&1; then
+    echo "Queue specified. Will submit jobs to $queue."
+  else
+    echo "fsl_sub is not installed. Will run jobs locally."
+    #exit 1
+    queue=""
+  fi
+fi
+
+if [ -z "$out" ]; then
+  out=$(dirname $refpath)/roi
+  echo "output directory not specified. create $out to store anatomical masks in reference space"
+fi
+
+### create output directory
+if [ ! -d $out ]; then
+  mkdir -p $out
+fi
+### create dir for left and right hemisphere
+for hemi in left right; do
+  if [ ! -d $out/$hemi ]; then
+    mkdir $out/$hemi
+  fi
+done
+
+if [ ! -z "$aparc" ]; then
+  aparc_basename=$(basename "$aparc")
+  if [[ "$aparc" == *.mgz ]]; then
+    if [ -z "$FREESURFER_HOME" ]; then
+      echo "If you feed in the aparc.a2009s+aseg in *.mgz format, please set up FREESURFER_HOME. "
+      exit 1
+    fi
+    $FREESURFER_HOME/bin/mri_convert $aparc $out/${aparc_basename%.*}.nii.gz
+    $FSLDIR/bin/flirt -in $out/${aparc_basename%.*}.nii.gz -ref $ref -out $out/${aparc_basename%.*}.nii.gz -applyxfm -usesqform -interp nearestneighbour
+    aparc="$out/${aparc_basename%.*}.nii.gz"
+  elif [[ "$aparc" == *.nii ]] || [[ "$aparc" == *.nii.gz ]]; then
+    $FSLDIR/bin/flirt -in $aparc -ref $ref -out $out/${aparc_basename%.*}.nii.gz -applyxfm -usesqform -interp nearestneighbour 
+    aparc="$out/${aparc_basename%.*}.nii.gz"
+  else
+    echo "Invalid aparc.a2009s+aseg file. Please use *.mgz or *.nii.gz/*.nii file."
+    exit 1
+  fi
+  #### cerebellum
+  echo "echo Create cerebellar ROIs based on the provided $aparc file..." > $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 6 -uthr 8 -bin $out/left/cerebellum" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 45 -uthr 47 -bin $out/right/cerebellum" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 7 -uthr 7 -bin $out/right/cerebellum_target" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 46 -uthr 46 -bin $out/left/cerebellum_target" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 24 -uthr 24 -bin $out/csf" >> $out/create_masks_cmds
+  ### left hemisphere cortical masks
+  echo "echo Create left hemisphere cortical ROIs based on the provided $aparc file..." >> $out/create_masks_cmds
+  for k in {11101..11175}; do
+    kk=`expr $k - 11100`
+    echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/left/$kk" >> $out/create_masks_cmds
+  done
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/left/cortex" >> $out/create_masks_cmds
+  ### right hemisphere cortical masks
+  echo "echo Create right hemisphere cortical ROIs based on the provided $aparc file..." >> $out/create_masks_cmds
+  for k in {12101..12175}; do
+    kk=`expr $k - 12100`
+    echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/right/$kk" >> $out/create_masks_cmds
+  done
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/right/cortex" >> $out/create_masks_cmds
+fi
+
+#$FSLDIR/bin/fslmaths $out/right/cortex -add $out/left/cortex -bin $out/cortex
+
+for hemi in left right; do
+  echo "echo Create masks for $hemi hemisphere..." >> $out/create_masks_cmds
+  ### create white matter masks - SCPCT tract
+  for tract in scpct_mask{1..15}; do
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+  done
+  ### STR
+  for tract in str_mask{1..10}; do
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+  done
+  ### ATR
+  for tract in atr_mask{1..8}; do
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+  done
+  ### AR
+  for tract in ar_mask{1..8}; do
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+  done
+  ### OR
+  for tract in or_mask{1..10}; do
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+  done
+  ### fornix
+  for tract in fx_mask{1..10}; do
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+  done
+  ### M1
+  for tract in to_precentral_mask{1..12}; do
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+  done
+  ### S1
+  for tract in to_postcentral_mask{1..12}; do
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+  done
+
+  ### thalamus - although it's recommend to use FSL's MIST
+  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/tha -w $warp -o $out/$hemi/tha --interp=nn" >> $out/create_masks_cmds
+
+  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/vim -w $warp -o $out/$hemi/vim" >> $out/create_masks_cmds
+
+  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/exclusion -w $warp -o $out/$hemi/exclusion --interp=nn" >> $out/create_masks_cmds
+
+  if [ -z "$aparc" ]; then
+    ### cerebellum - although it's recommend to use freesurfer's segmentation
+    ##### MNI_roi/$hemi/cerebellum_target is the contralateral cerebellar target
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/cerebellum_target -w $warp -o $out/$hemi/cerebellum_target --interp=nn" >> $out/create_masks_cmds
+    ##### MNI_roi/$hemi/cerebellum is ipsilateral cerebellum to avoid
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/cerebellum -w $warp -o $out/$hemi/cerebellum --interp=nn" >> $out/create_masks_cmds
+    ### cortical parcels - if no aparc.a2009s+aseg file is provided
+    for k in {1..75}; do
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$k -w $warp -o $out/$hemi/$k --interp=nn" >> $out/create_masks_cmds
+    done
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/cortex -w $warp -o $out/$hemi/cortex --interp=nn" >> $out/create_masks_cmds
+  fi
+done
+
+# SCPCT-related ROIs
+echo "echo Create SCPCT-related ROIs..." > $out/create_masks_scpct_cmds
+
+### if brain mask not provided, use standard
+if [ -z "$brainmask" ]; then
+  #echo "echo brainmask not provided. use standard brain mask MNI152_T1_1mm_brain_mask instead..." >> $out/create_masks_scpct_cmds
+  echo "$FSLDIR/bin/applywarp -r $ref -i $FSLDIR/data/standard/MNI152_T1_1mm_brain_mask -w $warp -o $out/brain_mask --interp=nn" >> $out/create_masks_scpct_cmds
+  brainmask="$out/brain_mask"
+fi
+
+for hemi in left right; do
+  ### SCPCT
+  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/SCPCT -w $warp -o $out/$hemi/SCPCT" >> $out/create_masks_scpct_cmds
+  echo "$FSLDIR/bin/fslmaths $out/$hemi/SCPCT -thr 0.0001 -bin $out/$hemi/SCPCT_bin" >> $out/create_masks_scpct_cmds
+  ### if brain mask not provided, use standard
+  #if [ -z "$brainmask" ]; then
+    #echo "$FSLDIR/bin/fslmaths $out/brain_mask -rem $out/$hemi/SCPCT_bin -bin -rem $out/$hemi/tha -bin $out/$hemi/stop_for_scpct" >> $out/create_masks_scpct_cmds
+  #else
+  echo "$FSLDIR/bin/fslmaths $brainmask -rem $out/$hemi/SCPCT_bin -bin -rem $out/$hemi/tha -bin $out/$hemi/stop_for_scpct" >> $out/create_masks_scpct_cmds
+  #fi
+done
+
+# execute locally or submit the jobs...
+if [ -z "$queue" ]; then
+  if [[ $njobs -eq 1 ]]; then
+    bash "$out/create_masks_cmds"
+  else
+    "$SCRIPT_DIR/run_parallel" "$out/create_masks_cmds" $njobs
+  fi
+  bash "$out/create_masks_scpct_cmds"
+else
+  fsl_sub -q $queue -N create_masks -l $out -t "$out/create_masks_cmds"
+  fsl_sub -q $queue -N create_masks_scpct -l $out "$out/create_masks_scpct_cmds"
+  echo "jobs submitted."
+fi

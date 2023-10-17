@@ -1,0 +1,154 @@
+#!/bin/bash
+
+Usage() {
+    echo ""
+    echo "Usage: ./connectivity_driven.sh --target1=m1.nii.gz --target2=cerebellum.nii.gz"
+    echo ""
+    echo "creates anatomical masks in reference space (--ref) for tractography and stores them in the output dir (--out)"
+    echo "if the cortical parcellation file (--aparc) not provided, uses standard masks instead"
+    echo ""
+    echo "<options>:"
+    echo "--target1                  Target1 tract density map, e.g. M1"
+    echo "--target2                  Target2 tract density map, e.g., contralateral cerebellum"
+    echo "--target3                  Optional, target3 tract density map"
+    echo "--out                      The output filename"
+    echo "--thr1                     Threshold on target1 tract density - default 50%"
+    echo "--thr2                     Threshold on target2 tract density - default 50%"
+    echo "--thr3                     Optional, threshold on target3 tract density - default 50%"
+    echo "--thr                      Optional, the final threshold to be applied on the product map - default 70%"
+    echo "--queue                    Optional, the queue jobs should be submitted to. Run locally if not specified."
+    echo ""
+    echo ""
+    exit 1
+}
+
+if [ -z "$FSLDIR" ]; then
+  echo "Environment variable $FSLDIR does not exist. Please set up FSLDIR. "
+  exit 1
+fi
+
+thr1=50
+thr2=50
+thr3=50
+thr=70
+
+for arg in "$@"
+do
+  case $arg in
+    --help)
+    Usage
+    ;;
+    --out=*)
+    out="${arg#*=}"
+    shift
+    ;;
+    --target1=*)
+    target1="${arg#*=}"
+    shift
+    ;;
+    --target2=*)
+    target2="${arg#*=}"
+    shift
+    ;;
+    --target3=*)
+    target3="${arg#*=}"
+    shift
+    ;;
+    --thr1=*)
+    thr1="${arg#*=}"
+    shift
+    ;;
+    --thr2=*)
+    thr2="${arg#*=}"
+    shift
+    ;;
+    --thr3=*)
+    thr3="${arg#*=}"
+    shift
+    ;;
+    --thr=*)
+    thr="${arg#*=}"
+    shift
+    ;;
+    --queue=*)
+    queue="${arg#*=}"
+    shift
+    ;;
+    *)
+    echo "Unknown option: $arg"
+    Usage
+    exit 1
+    ;;
+  esac
+done
+
+get_abs_file_path() {
+    file_path=$1
+
+    # Check if realpath is available
+    if command -v realpath > /dev/null 2>&1; then
+        abs_path=$(realpath "$file_path")
+    # Fallback to readlink -f if realpath is not available
+    elif command -v readlink > /dev/null 2>&1; then
+        abs_path=$(readlink -f "$file_path")
+    else
+        echo "Error: realpath and readlink commands are not available."
+        return 1
+    fi
+
+    echo "$abs_path"
+}
+
+if [ -z "$target1" ]; then
+  echo "Error: Missing required argument --target1"
+  exit 1
+elif [ ! -f $target1 ]; then
+  echo "Error: $target1 not exist"
+  exit 1
+else
+  refpath=$(get_abs_file_path "$target1")
+fi
+
+if [ -z "$target2" ]; then
+  echo "Error: Missing required argument --target2"
+  exit 1
+fi
+
+if [ -z "$out" ]; then
+  #echo "Output filename not specified - default creating a folder called 'burned' under the same directory as target1..."
+  #out=$(dirname $refpath)/burned
+  #if [ ! -d $out ]; then
+    #mkdir $out
+  #fi
+  echo "Error: Missing required argument --out. Please specify output filename."
+  exit 1
+fi
+
+if [ ! -z "$queue" ]; then
+  if which fsl_sub > /dev/null 2>&1; then
+    echo "Queue specified. Will submit jobs to $queue."
+  else
+    echo "fsl_sub is not installed. Will run jobs locally."
+    #exit 1
+    queue=""
+  fi
+fi
+
+outdir=$(dirname $out)
+
+$FSLDIR/bin/fslmaths $target1 -thrP $thr1 $outdir/target1_thrP${thr1}
+$FSLDIR/bin/fslmaths $target2 -thrP $thr2 $outdir/target2_thrP${thr2}
+cmd="$FSLDIR/bin/fslmaths $outdir/target1_thrP${thr1} -mul $outdir/target2_thrP${thr2}"
+if [ ! -z "$target3" ]; then
+  $FSLDIR/bin/fslmaths $target3 -thrP $thr3 $outdir/target3_thrP${thr2}
+  cmd="$cmd -mul $outdir/target3_thrP${thr2}"
+fi
+
+cmd="$cmd -thrP $thr -bin $out"
+if [ -z "$queue" ]; then
+  eval $cmd
+else
+  fsl_sub -q $queue -N connectivity_driven -l $outdir $cmd
+fi
+#$FSLDIR/bin/fslmaths $outdir/target1_thrP${thr1} -mul $outdir/target2_thrP${thr2} -thrP $thr -bin $out
+
