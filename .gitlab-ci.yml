@@ -1,4 +1,4 @@
-image: python:3.10
+image: python:3.9
 
 stages:
   - build
@@ -13,6 +13,8 @@ pages:
   artifacts:
     paths:
     - public
+  tags:
+    - docker
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -33,8 +35,12 @@ build:
   stage: build
   script:
     - python setup.py install
+  tags:
+    - docker
 
 test:
   stage: test
   script: 
     - python -m pytest
+  tags:
+    - docker
