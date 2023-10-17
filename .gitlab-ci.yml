@@ -3,6 +3,21 @@ image: python:3.9
 stages:
   - build
   - test
+  - docs
+
+pages:
+  stage: docs
+  script:
+  - pip install sphinx
+  - pip install sphinx_rtd_theme
+  - cd docs
+  - make html
+  - mv build/html ../public
+  artifacts:
+    paths:
+    - public
+  tags:
+    - docker
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -23,8 +38,12 @@ build:
   stage: build
   script:
     - python setup.py install
+  tags:
+    - docker
 
 test:
   stage: test
   script: 
     - python -m pytest
+  tags:
+    - docker

@@ -1,0 +1,18 @@
+#!/usr/bin/env python
+from localise.utils import predict_mode, train_mode
+from localise.args import parse_arguments   
+
+if __name__ == "__main__":
+    args = parse_arguments()
+    if args.predict:
+        predict_mode(subject=args.subject, mask=args.mask, structure=args.structure, 
+                     target_path=args.target_path, target_list=args.target_list, 
+                     data=args.data, atlas=args.atlas, out=args.out, 
+                     model=args.model, spatial=args.spatial, data_type=args.data_type)
+    elif args.train:
+        train_mode(args.subject, args.mask, args.label, 
+                   args.target_path, args.target_list, 
+                   args.data, args.atlas, args.out_model, 
+                   args.spatial, args.epochs)
+    else:
+        raise ValueError("Exactly one of --train or --predict must be specified.")

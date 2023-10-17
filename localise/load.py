@@ -18,7 +18,7 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
 
     Parameters
     ----------
-    subject : str
+    subject : str or list of str
         The name of the subject.
     mask_name : str
         The name of the mask file.
@@ -28,8 +28,8 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
         The path to the data.
     atlas : str, optional. Defaults to None.
         The path to the atlas. If not None, will include this as an additional features
-    target_list : list, optional
-        A list of targets. Defaults to `DEFAULT_TARGET_LIST`.
+    target_list : list or str, optional
+        A list of targets, or the txt file listing the names of the targets. 
     demean : bool, optional
         If True, demean the feature matrix. Defaults to True.
     normalise : bool, optional
@@ -52,7 +52,16 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
         If both `data` and `target_path` are not set.
         If the loaded data matrix and mask dimensions do not match.
 
-    """    
+    """
+    if isinstance(subject, list):
+        results = [load_features(subject=s, mask_name=mask_name, 
+                                 target_path=target_path, data=data, atlas=atlas, 
+                                 target_list=target_list, demean=demean, 
+                                 normalise=normalise, gamma=gamma, 
+                                 power=power, output_fname=output_fname) 
+                   for s in subject]
+        return results
+
     if data is None and target_path is None:
         raise ValueError("Please specify either target_path or data.")
     
@@ -71,6 +80,11 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
     
     # load data into X
     if data is None:
+        # if target_list is a file containing target names
+        if isinstance(target_list, str):
+            with open(target_list, 'r') as f:
+                target_list = [line.strip() for line in f]
+
         n_targets = len(target_list)
         X = np.zeros((n_targets, n), dtype=np.float32)
         for k in range(n_targets):
@@ -99,9 +113,9 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
     
     # maximum tract density normalised to 1
     if normalise:
-        maxX = np.max(X, axis=1)
+        maxX = np.max(X, axis=1, keepdims=True)
         maxX[ maxX==0 ] = 1
-        X /= maxX[:, None]
+        X /= maxX
     
     # replace np.nan and np.inf with 0
     X = np.nan_to_num(X)
@@ -122,7 +136,7 @@ def load_labels(subject, mask_name, label_name):
 
     Parameters
     ----------
-    subject : str
+    subject : str or list of str
         Path to the subject directory.
     mask_name : str
         Filename of the mask data file.
@@ -136,6 +150,11 @@ def load_labels(subject, mask_name, label_name):
         The first row is a binary vector corresponding to the label data (1 if the label data > 0, otherwise 0).
         The second row is the inverse of the first row.
     """
+
+    if isinstance(subject, list):
+        results = [load_labels(subject=s, mask_name=mask_name, label_name=label_name) 
+                   for s in subject]
+        return results
 
     mask = nib.load(os.path.join(subject, mask_name)).get_fdata()
     index = np.where(mask > 0)
@@ -157,7 +176,7 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
 
     Parameters
     ----------
-    subject : str
+    subject : str or list of str
         The name of the subject.
     mask_name : str
         The name of the mask file.
@@ -169,8 +188,8 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
         The path to the data.
     atlas : str, optional. Defaults to None.
         The path to the atlas. If not None, will include this as an additional feature
-    target_list : list, optional
-        A list of targets. Defaults to `DEFAULT_TARGET_LIST`.
+    target_list : list or str, optional
+        A list of targets, or the txt file listing the names of the targets. 
     demean : bool, optional
         If True, demean the feature matrix. Defaults to True.
     normalise : bool, optional
@@ -195,6 +214,15 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
         If the loaded data matrix and mask dimensions do not match.
 
     """
+    if isinstance(subject, list):
+        results = [load_data(subject=s, mask_name=mask_name, label_name=label_name, 
+                             target_path=target_path, data=data, atlas=atlas, 
+                             target_list=target_list, demean=demean, 
+                             normalise=normalise, gamma=gamma, 
+                             power=power, output_fname=output_fname) 
+                   for s in subject]
+        return results
+
     features = load_features(subject=subject, mask_name=mask_name, target_path=target_path, 
                              data=data, atlas=atlas, target_list=target_list, 
                              demean=demean, normalise=normalise, 

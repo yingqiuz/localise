@@ -18,19 +18,25 @@ batches = [load_data(subject=os.path.join(f'{path_to_data}',subject),
                       target_path='streamlines/left', 
                       target_list=target_list, power=[1, 2], gamma=[0, 0.1]) for subject in subjects]
 
-    
-def test_apply_pretrained_model():
-    predictions = apply_pretrained_model(
-        [X for (X, y) in batches], 
-        os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth')
-        )
-    for prediction, batch in zip(predictions, batches):
-        assert prediction.shape == batch[1].shape
-        
-def test_train():
+
+def test_apply_model():
     m = train(ShuffledDataLoader([batches[0], batches[1]]), 
-              ShuffledDataLoader([batches[2]]), n_epochs=5, 
-              model_save_path=os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth'))
+              ShuffledDataLoader([batches[2]]), n_epochs=5, spatial_model=False)
     predictions = apply_model([X for (X, y) in batches], m)
     for prediction, batch in zip(predictions, batches):
         assert prediction.shape == batch[1].shape
+
+    
+def test_apply_pretrained_model():
+    model_save_path = os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth')
+    m = train(ShuffledDataLoader([batches[0], batches[1]]), 
+              ShuffledDataLoader([batches[2]]), n_epochs=5, spatial_model=False,
+              model_save_path=model_save_path)
+    predictions = apply_pretrained_model(
+        [X for (X, y) in batches], 
+        os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth'),
+        spatial_model=False
+        )
+    for prediction, batch in zip(predictions, batches):
+        assert prediction.shape == batch[1].shape
+    os.remove(model_save_path)
