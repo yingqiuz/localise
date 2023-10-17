@@ -7,6 +7,7 @@ stages:
 pages:
   script:
   - pip install sphinx
+  - pip install sphinx_rtd_theme
   - cd docs
   - make html
   - mv build/html public
