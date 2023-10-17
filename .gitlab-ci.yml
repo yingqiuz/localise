@@ -44,13 +44,14 @@ build:
 test:
   stage: test
   script: 
-    - pip install pytest-cov
-    - python -m pytest --cov-report term --cov-report xml:/builds/yqzheng1/python-localise/coverage.xml
+    - pip install pytest-cov coverage
+    - python -m pytest --cov-report term --cov-report xml:coverage.xml
+    - ls -al
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: /builds/yqzheng1/python-localise/coverage.xml
+        path: coverage.xml
   tags:
     - docker
