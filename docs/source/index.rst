@@ -5,9 +5,8 @@
 
 Welcome to Localise's documentation!
 ====================================
-**Localise** is a Python library for segmentating prevalent surgical targets using multimodal MRI. It pulls data from the `Open Food
-Facts database <https://world.openfoodfacts.org/>`_ and offers a *simple* and *intuitive* API. 
-Check out the :doc:`usage` section for further information, including how to
+**Localise** is a Python library for segmentating prevalent surgical targets using multimodal MRI. 
+Check out the :ref:`Usage <usage>` section for further information, including how to
 :ref:`install <installation>` the project.
 
 .. note::
