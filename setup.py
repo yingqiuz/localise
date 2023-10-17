@@ -19,6 +19,12 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=['localise',],
+    scripts=[
+        'scripts/localise',
+        'scripts/create_masks',
+        'scripts/create_tracts',
+        'scripts/connectivity_driven'
+    ],
     install_requires=install_requires,
     python_requires='>=3.7',
 )
