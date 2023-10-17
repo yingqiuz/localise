@@ -44,6 +44,7 @@ build:
 test:
   stage: test
   script: 
-    - python -m pytest
+    - pip install pytest-cov
+    - python -m pytest --cov=localise --cov-report=xml
   tags:
     - docker
