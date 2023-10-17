@@ -46,5 +46,6 @@ test:
   script: 
     - pip install pytest-cov
     - python -m pytest --cov=localise --cov-report=xml
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   tags:
     - docker
