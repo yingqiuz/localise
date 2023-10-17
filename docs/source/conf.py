@@ -9,6 +9,7 @@
 project = 'Localise'
 copyright = '2023, Ying-Qiu Zheng'
 author = 'Ying-Qiu Zheng'
+version = '0.1'
 release = '0.1'
 
 # -- General configuration ---------------------------------------------------
