@@ -14,7 +14,7 @@ Check out the :ref:`Usage <usage>` section for further information, including ho
    This project is under active development.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
    
    sections/usage
