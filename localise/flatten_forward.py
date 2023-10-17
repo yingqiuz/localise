@@ -23,7 +23,7 @@ class FlexibleClassifier(Module):
         self.n_kernels = n_kernels
 
         if self.is_crf:
-            self.smooth_weight = Parameter(torch.rand(n_kernels))
+            self.smooth_weight = Parameter(torch.full((n_kernels,), 0.5))
             self.compatibility = Parameter((torch.ones(n_classes, n_classes) - torch.eye(n_classes)).float(), requires_grad=False)
     
     #@property

@@ -49,6 +49,7 @@ def apply_pretrained_model(data, model_save_path, model="Linear", spatial_model=
 
     return predictions
 
+
 def apply_model(data, model):
     """_summary_
 

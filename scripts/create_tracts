@@ -1,0 +1,260 @@
+#!/bin/bash
+
+Usage() {
+    echo ""
+    echo "Usage: ./create_tracts.sh --inputdir=/path/to/roi_folder --samples=/path/to/data.bedpostX --seed=/path/to/seed.nii.gz"
+    echo ""
+    echo "creates tracts for the specified seed, using fiber samples estimated via BedpostX"
+    echo "if seed is not specified, use tha.nii.gz as default seed under the input ROI folder."
+    echo ""
+    echo "<options>:"
+    echo "--samples       BedpostX directory that stores fibre orientation files, e.g., data.bedpostX"
+    echo "--inputdir      Input directory that stores left and right hemisphere anatomical masks in native T1 space"
+    #echo "--hemi          Left or right hemisphere"
+    echo "--seed          Optional, the seed mask, usually in the individual T1 native space - default is tha.nii.gz under inputdir"
+    echo "--xfm           Optional, the transformation matrix that maps the reference T1 space to the diffusion space"
+    echo "--ref           Optional, the reference image, usually in the individual T1 native space"
+    echo "--out           Optional, the output directory to store tract density maps - default is inputdir/hemi/streamlines"
+    echo "--brainmask     Optional, the binary brain mask in the reference space)"
+    echo "--nsteps        Optional, number of steps per sample - default=2000"
+    echo "--cthr          Optional, curvature threshold - default=0.2"
+    echo "--fibthresh     Optional, volume fraction before subsidary fibre orientations are considered - default=0.01"
+    echo "--nsamples      Optional, number of samples - default=10000"
+    echo "--steplength    Optional, steplength in mm - default=0.5"
+    echo "--sampvox       Optional, sample random points within a sphere with radius x mm from the center of the seed voxels"
+    echo "--distthresh    Optional, discards samples shorter than this threshold (in mm - default=0)"
+    echo "--gpu           Optional, use the gpu version of probtractx2"
+    echo "--queue         Optional, the queue jobs should be submitted to. Run locally if not specified."
+    exit 1
+}
+
+[ "$1" = "" ] && Usage
+
+for arg in "$@"
+do
+    if [ "$arg" == "--help" ]; then
+        Usage
+    fi
+done
+
+if [ -z "$FSLDIR" ]; then
+  echo "Environment variable $FSLDIR does not exist. Please set up FSLDIR. "
+  exit 1
+fi
+
+get_abs_file_path() {
+    file_path=$1
+
+    # Check if realpath is available
+    if command -v realpath > /dev/null 2>&1; then
+        abs_path=$(realpath "$file_path")
+    # Fallback to readlink -f if realpath is not available
+    elif command -v readlink > /dev/null 2>&1; then
+        abs_path=$(readlink -f "$file_path")
+    else
+        echo "Error: realpath and readlink commands are not available."
+        return 1
+    fi
+
+    echo "$abs_path"
+}
+
+### some default values
+nsteps=2000
+verbose=2
+cthr=0.2
+steplength=0.5
+nsamples=10000
+fibthresh=0.01
+sampvox=1.0
+distthresh=0
+prog="probtrackx2"
+### parse arguments
+for arg in "$@"
+do
+  case $arg in
+    --help)
+    Usage
+    ;;
+    --seed=*)
+    seed="${arg#*=}"
+    shift
+    ;;
+    --ref=*)
+    ref="${arg#*=}"
+    shift
+    ;;
+    --samples=*)
+    samples="${arg#*=}"
+    shift
+    ;;
+    --out=*)
+    out="${arg#*=}"
+    shift
+    ;;
+    --inputdir=*)
+    inputdir="${arg#*=}"
+    shift
+    ;;
+    --brainmask=*)
+    brainmask="${arg#*=}"
+    shift
+    ;;
+    --xfm=*)
+    xfm="${arg#*=}"
+    shift
+    ;;
+    --nsteps=*)
+    nsteps="${arg#*=}"
+    shift
+    ;;
+    --cthr=*)
+    cthr="${arg#*=}"
+    shift
+    ;;
+    --verbose=*)
+    verbose="${arg#*=}"
+    shift
+    ;;
+    --steplength=*)
+    steplength="${arg#*=}"
+    shift
+    ;;
+    --nsamples=*)
+    nsamples="${arg#*=}"
+    shift
+    ;;
+    --fibthresh=*)
+    fibthresh="${arg#*=}"
+    shift
+    ;;
+    --sampvox=*)
+    sampvox="${arg#*=}"
+    shift
+    ;;
+    --distthresh=*)
+    distthresh="${arg#*=}"
+    shift
+    ;;
+    --gpu)
+    prog="probtrackx2_gpu"
+    shift
+    ;;
+    --queue=*)
+    queue="${arg#*=}"
+    shift
+    ;;
+    *)
+    echo "Unknown option: $arg"
+    Usage
+    exit 1
+    ;;
+  esac
+done
+
+### Check if required arguments are provided
+if [ -z "$inputdir" ]; then
+  echo "Error: Missing required argument --inputdir, the folder that contains anatomical masks"
+  exit 1
+elif [ ! -d $inputdir ]; then
+  echo "$inputdir does not exist. "
+  exit 1
+else
+  refpath=$(get_abs_file_path "$inputdir")
+fi
+
+if [ -z "$samples" ]; then
+  echo "Error: Missing required argument --samples, "
+  echo "Please specify the bedpostX directory that stores fibre orientation files, e.g., data.bedpostX"
+  exit 1
+fi
+
+#if [ -z "$hemi" ]; then
+  #echo "Error: Missing required argument --hemi, left or right"
+  #exit 1
+#fi
+if [ ! -z "$queue" ]; then
+  if which fsl_sub > /dev/null 2>&1; then
+    echo "Queue specified. Will submit jobs to $queue."
+  else
+    echo "fsl_sub is not installed. Will run jobs locally."
+    #exit 1
+    queue=""
+  fi
+fi
+
+if [ -z "$out" ]; then
+  out=$refpath/streamlines
+  echo "output directory not specified. create $out to store tract density maps in reference space"
+fi
+
+if [ -z "$seed" ]; then
+  echo "Seed mask not specified. default using $inputdir/tha.nii.gz..."
+  seed=$inputdir/tha
+  if [ ! -f $seed.nii.gz ] && [ ! -f $seed.nii ]; then
+    echo "$seed not found."
+    exit 1
+  fi
+fi
+
+if [ -z "$brainmask" ]; then
+  brainmask=$samples/nodif_brain_mask
+  if [ ! -f $brainmask.nii.gz ] && [ ! -f $brainmask.nii ]; then
+    echo "$brainmask.nii.gz or $brainmask.nii does not exist under $samples. Creating one..."
+    fslmaths $samples/mean_fsumsamples -thr 0 -bin $brainmask
+  fi
+fi
+
+### create output directory
+if [ ! -d $out ]; then
+  mkdir -p $out
+fi
+
+## create a list containing the anatomical masks
+echo $inputdir/ar_mask{1..8}.nii.gz > $inputdir/targets.txt;
+echo $inputdir/or_mask{1..10}.nii.gz >> $inputdir/targets.txt;
+echo $inputdir/str_mask{1..10}.nii.gz >> $inputdir/targets.txt;
+echo $inputdir/atr_mask{1..8}.nii.gz >> $inputdir/targets.txt;
+echo $inputdir/fx_mask{1..10}.nii.gz >> $inputdir/targets.txt;
+echo $inputdir/to_precentral_mask{1..12}.nii.gz  >> $inputdir/targets.txt;
+echo $inputdir/to_postcentral_mask{1..12}.nii.gz  >> $inputdir/targets.txt;
+echo $inputdir/{1..75}.nii.gz >> $inputdir/targets.txt;
+
+opts="-x $seed -s $samples/merged -m $brainmask --dir=$out"
+opts="$opts --verbose=$verbose --cthr=$cthr --nsteps=$nsteps --steplength=$steplength --nsamples=$nsamples --fibthresh=$fibthresh"
+opts="$opts --distthresh=$distthresh --sampvox=$sampvox -l --onewaycondition --forcedir --pd --opd --os2t --modeuler"
+
+if [ ! -z "$xfm" ]; then
+  opts="$opts --xfm=$xfm"
+  if [ ! -z "$ref" ]; then
+    opts="$opts --seedref=$ref"
+  else
+    opts="$opts --seedref=$seed"
+  fi
+fi
+
+cmd="$FSLDIR/bin/$prog $opts"
+cmd="$cmd --targetmasks=$inputdir/targets.txt"
+cmd="$cmd --avoid=$inputdir/cerebellum --stop=$inputdir/cortex"
+
+### run tractography...
+echo $cmd > $out/create_tracts_cmds;
+#eval $cmd;
+
+echo $inputdir/scpct_mask{1..15}.nii.gz > $inputdir/targets.txt;
+echo $inputdir/cerebellum_target.nii.gz >> $inputdir/targets.txt;
+cmd="$FSLDIR/bin/$prog $opts"
+cmd="$cmd --targetmasks=$inputdir/targets.txt"
+cmd="$cmd --avoid=$inputdir/exclusion --stop=$inputdir/stop_for_scpct"
+echo $cmd >> $out/create_tracts_cmds;
+#eval $cmd;
+if [ -z "$queue" ]; then
+  bash $out/create_tracts_cmds
+else
+  if gpu; then
+    fsl_sub -q $queue -c cuda -N create_tracts -l $out -t $out/create_tracts_cmds
+  else
+    fsl_sub -q $queue -N create_tracts -l $out -t $out/create_tracts_cmds
+  fi
+fi
+
