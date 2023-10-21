@@ -315,7 +315,10 @@ if [ -z "$queue" ]; then
   fi
   bash "$out/create_masks_scpct_cmds"
 else
-  fsl_sub -q $queue -N create_masks -l $out -t "$out/create_masks_cmds"
-  fsl_sub -q $queue -N create_masks_scpct -l $out "$out/create_masks_scpct_cmds"
-  echo "jobs submitted. Logs will be stored uder $out."
+  if [ ! -d $out/log ]; then
+    mkdir $out/logs
+  fi;
+  fsl_sub -q $queue -N create_masks -l $out/logs -t "$out/create_masks_cmds"
+  fsl_sub -q $queue -N create_masks_scpct -l $out/logs "bash $out/create_masks_scpct_cmds"
+  echo "jobs submitted. Logs will be stored uder $out/logs."
 fi
