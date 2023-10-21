@@ -2,25 +2,6 @@
 
 Usage() {
     echo ""
-    echo "Usage: create_masks.sh --ref=t1.nii.gz --warp=standard2str.nii.gz --out=outputdir --aparc=aparc.a2009s+aseg.nii.gz"
-    echo ""
-    echo "creates anatomical masks in reference space (--ref) for tractography and stores them in the output dir (--out)"
-    echo "if the cortical parcellation file (--aparc) not provided, uses standard masks instead"
-    echo ""
-    echo "<options>:"
-    echo "--ref (the reference image, usually in the individual T1 native space)"
-    echo "--warp (the warp field that maps the MNI standard space to individual T1 space)"
-    echo "--aparc (the cortical segmentation file from Freesurfer, either in *.mgz or *.nii.gz/*.nii)"
-    echo "--out (optional, the output directory to store the anatomical masks. if not provided, create a folder called roi in the same directory as the reference image)"
-    echo "--brainmask (optional, the binary brain mask in the reference space)"
-    echo "--queue (optional, the queue jobs should be submitted to. Run locally if not specified.)"
-    echo "--njobs (optional, the number of jobs to run in parallel locally.)"
-    echo ""
-    echo ""
-    exit 1
-}
-Usage() {
-    echo ""
     echo "Usage: create_masks.sh --ref=subj001/t1.nii.gz --warp=subj001/standard2str.nii.gz --out=subj001/roi --aparc=subj001/aparc.a2009s+aseg.nii.gz"
     echo "       or with short flags:"
     echo "       create_masks.sh -r subj001/t1.nii.gz -w subj001/standard2str.nii.gz -o subj001/roi -a subj001/aparc.a2009s+aseg.nii.gz"
@@ -29,13 +10,14 @@ Usage() {
     echo "  Creates anatomical masks in reference space (--ref) for tractography and stores them in the output directory (--out)."
     echo ""
     echo "Options:"
-    echo "  -r, --ref       The reference image, typically in the individual T1 native space."
-    echo "  -w, --warp      The warp field mapping the MNI standard space to individual T1 space."
-    echo "  -a, --aparc     Cortical segmentation file from Freesurfer (in *.mgz, *.nii.gz, or *.nii formats)."
-    echo "  -o, --out       (Optional) Directory to store the anatomical masks. Defaults to a 'roi' folder in the same directory as the reference image."
-    echo "  -b, --brainmask (Optional) Binary brain mask in the reference space."
-    echo "  -q, --queue     (Optional) Queue for job submissions. Defaults to local execution."
-    echo "  -n, --njobs     (Optional) Number of jobs to run in parallel locally. Defaults to 1."
+    echo "  -r, --ref         The reference image, typically in the individual T1 native space."
+    echo "  -w, --warp        The warp field mapping the MNI standard space to individual T1 space."
+    echo "  -a, --aparc       Cortical segmentation file from Freesurfer (in *.mgz, *.nii.gz, or *.nii formats)."
+    echo "  -o, --out         (Optional) Directory to store the anatomical masks."
+    echo "                               Defaults to a 'roi' folder in the same directory as the reference image."
+    echo "  -b, --brainmask   (Optional) Binary brain mask in the reference space."
+    echo "  -q, --queue       (Optional) Queue for job submissions. Defaults to local execution."
+    echo "  -n, --njobs       (Optional) Number of jobs to run in parallel locally. Defaults to 1."
     echo ""
     exit 1
 }
@@ -115,43 +97,36 @@ do
       njobs="$1"
       shift
       ;;
+    --ref=*)
+      ref="${arg#*=}"
+      shift
+      ;;
+    --out=*)
+      out="${arg#*=}"
+      shift
+      ;;
+    --warp=*)
+      warp="${arg#*=}"
+      shift
+      ;;
+    --aparc=*)
+      aparc="${arg#*=}"
+      shift
+      ;;
+    --brainmask=*)
+      brainmask="${arg#*=}"
+      shift
+      ;;
+    --queue=*)
+      queue="${arg#*=}"
+      shift
+      ;;
+    --njobs=*)
+      njobs="${arg#*=}"
+      shift
+      ;;
     *)
-    # Check for the pattern with "="
-    case $arg in
-        --ref=*)
-            ref="${arg#*=}"
-            shift
-            ;;
-        --out=*)
-            out="${arg#*=}"
-            shift
-            ;;
-        --warp=*)
-            warp="${arg#*=}"
-            shift
-            ;;
-        --aparc=*)
-            aparc="${arg#*=}"
-            shift
-            ;;
-        --brainmask=*)
-            brainmask="${arg#*=}"
-            shift
-            ;;
-        --queue=*)
-            queue="${arg#*=}"
-            shift
-            ;;
-        --njobs=*)
-            njobs="${arg#*=}"
-            shift
-            ;;
-        *)
-        # echo "Unknown option: $arg"
-        # Usage
-        # exit 1
-        ;;
-    esac
+    
     ;;
   esac
 done
