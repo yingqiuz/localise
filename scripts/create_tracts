@@ -10,8 +10,7 @@ Usage() {
     echo "<options>:"
     echo "--samples       BedpostX directory that stores fibre orientation files, e.g., data.bedpostX"
     echo "--inputdir      Input directory that stores left and right hemisphere anatomical masks in native T1 space"
-    #echo "--hemi          Left or right hemisphere"
-    echo "--seed          Optional, the seed mask, usually in the individual T1 native space - default is tha.nii.gz under inputdir"
+    echo "--seed          The seed mask, usually in the individual T1 native space - default is tha.nii.gz under inputdir"
     echo "--xfm           Optional, the transformation matrix that maps the reference T1 space to the diffusion space"
     echo "--ref           Optional, the reference image, usually in the individual T1 native space"
     echo "--out           Optional, the output directory to store tract density maps - default is inputdir/hemi/streamlines"
@@ -184,17 +183,13 @@ if [ ! -z "$queue" ]; then
 fi
 
 if [ -z "$out" ]; then
-  out=$refpath/streamlines
+  out=$($dirname "$refpath")/streamlines
   echo "output directory not specified. create $out to store tract density maps in reference space"
 fi
 
 if [ -z "$seed" ]; then
-  echo "Seed mask not specified. default using $inputdir/tha.nii.gz..."
-  seed=$inputdir/tha
-  if [ ! -f $seed.nii.gz ] && [ ! -f $seed.nii ]; then
-    echo "$seed not found."
-    exit 1
-  fi
+  echo "Error: Missing required argument --seed, the seed mask for tractography."
+  exit 1
 fi
 
 if [ -z "$brainmask" ]; then
@@ -210,44 +205,52 @@ if [ ! -d $out ]; then
   mkdir -p $out
 fi
 
-## create a list containing the anatomical masks
-echo $inputdir/ar_mask{1..8}.nii.gz > $inputdir/targets.txt;
-echo $inputdir/or_mask{1..10}.nii.gz >> $inputdir/targets.txt;
-echo $inputdir/str_mask{1..10}.nii.gz >> $inputdir/targets.txt;
-echo $inputdir/atr_mask{1..8}.nii.gz >> $inputdir/targets.txt;
-echo $inputdir/fx_mask{1..10}.nii.gz >> $inputdir/targets.txt;
-echo $inputdir/to_precentral_mask{1..12}.nii.gz  >> $inputdir/targets.txt;
-echo $inputdir/to_postcentral_mask{1..12}.nii.gz  >> $inputdir/targets.txt;
-echo $inputdir/{1..75}.nii.gz >> $inputdir/targets.txt;
-
-opts="-x $seed -s $samples/merged -m $brainmask --dir=$out"
-opts="$opts --verbose=$verbose --cthr=$cthr --nsteps=$nsteps --steplength=$steplength --nsamples=$nsamples --fibthresh=$fibthresh"
-opts="$opts --distthresh=$distthresh --sampvox=$sampvox -l --onewaycondition --forcedir --pd --opd --os2t --modeuler"
-
-if [ ! -z "$xfm" ]; then
-  opts="$opts --xfm=$xfm"
-  if [ ! -z "$ref" ]; then
-    opts="$opts --seedref=$ref"
-  else
-    opts="$opts --seedref=$seed"
+rm $out/create_tracts_cmds
+# for left and right hemispheres
+for hemi in left right; do
+  if [ ! -d $out/$hemi ]; then
+    mkdir $out/$hemi
   fi
-fi
+  ## create a list containing the anatomical masks
+  echo $inputdir/$hemi/ar_mask{1..8}.nii.gz > $inputdir/$hemi/targets.txt;
+  echo $inputdir/$hemi/or_mask{1..10}.nii.gz >> $inputdir/$hemi/targets.txt;
+  echo $inputdir/$hemi/str_mask{1..10}.nii.gz >> $inputdir/$hemi/targets.txt;
+  echo $inputdir/$hemi/atr_mask{1..8}.nii.gz >> $inputdir/$hemi/targets.txt;
+  echo $inputdir/$hemi/fx_mask{1..10}.nii.gz >> $inputdir/$hemi/targets.txt;
+  echo $inputdir/$hemi/to_precentral_mask{1..12}.nii.gz  >> $inputdir/$hemi/targets.txt;
+  echo $inputdir/$hemi/to_postcentral_mask{1..12}.nii.gz  >> $inputdir/$hemi/targets.txt;
+  echo $inputdir/$hemi/{1..75}.nii.gz >> $inputdir/$hemi/targets.txt;
 
-cmd="$FSLDIR/bin/$prog $opts"
-cmd="$cmd --targetmasks=$inputdir/targets.txt"
-cmd="$cmd --avoid=$inputdir/cerebellum --stop=$inputdir/cortex"
+  opts="-x $inputdir/$hemi/$seed -s $samples/merged -m $brainmask --dir=$out/$hemi"
+  opts="$opts --verbose=$verbose --cthr=$cthr --nsteps=$nsteps --steplength=$steplength --nsamples=$nsamples --fibthresh=$fibthresh"
+  opts="$opts --distthresh=$distthresh --sampvox=$sampvox -l --onewaycondition --forcedir --pd --opd --os2t --modeuler"
 
-### run tractography...
-echo $cmd > $out/create_tracts_cmds;
-#eval $cmd;
+  if [ ! -z "$xfm" ]; then
+    opts="$opts --xfm=$xfm"
+    if [ ! -z "$ref" ]; then
+      opts="$opts --seedref=$ref"
+    else
+      opts="$opts --seedref=$inputdir/$hemi/$seed"
+    fi
+  fi
 
-echo $inputdir/scpct_mask{1..15}.nii.gz > $inputdir/targets.txt;
-echo $inputdir/cerebellum_target.nii.gz >> $inputdir/targets.txt;
-cmd="$FSLDIR/bin/$prog $opts"
-cmd="$cmd --targetmasks=$inputdir/targets.txt"
-cmd="$cmd --avoid=$inputdir/exclusion --stop=$inputdir/stop_for_scpct"
-echo $cmd >> $out/create_tracts_cmds;
-#eval $cmd;
+  cmd="$FSLDIR/bin/$prog $opts"
+  cmd="$cmd --targetmasks=$inputdir/$hemi/targets.txt"
+  cmd="$cmd --avoid=$inputdir/$hemi/cerebellum --stop=$inputdir/cortex"
+
+  ### run tractography...
+  echo $cmd >> $out/create_tracts_cmds;
+  #eval $cmd;
+
+  echo $inputdir/$hemi/scpct_mask{1..15}.nii.gz > $inputdir/$hemi/scpct_targets.txt;
+  echo $inputdir/$hemi/cerebellum_target.nii.gz >> $inputdir/$hemi/scpct_targets.txt;
+  cmd="$FSLDIR/bin/$prog $opts"
+  cmd="$cmd --targetmasks=$inputdir/$hemi/scpct_targets.txt"
+  cmd="$cmd --avoid=$inputdir/$hemi/exclusion --stop=$inputdir/$hemi/stop_for_scpct"
+  echo $cmd >> $out/create_tracts_cmds;
+  #eval $cmd;
+done
+
 if [ -z "$queue" ]; then
   bash $out/create_tracts_cmds
 else
