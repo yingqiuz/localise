@@ -178,14 +178,14 @@ if [ ! -z "$aparc" ]; then
     kk=`expr $k - 11100`
     echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/left/$kk" >> $out/create_masks_cmds
   done
-  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/left/cortex" >> $out/create_masks_cmds
+  #echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/cortex" >> $out/create_masks_cmds
   ### right hemisphere cortical masks
   echo "echo Create right hemisphere cortical ROIs based on the provided $aparc file..." >> $out/create_masks_cmds
   for k in {12101..12175}; do
     kk=`expr $k - 12100`
     echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/right/$kk" >> $out/create_masks_cmds
   done
-  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/right/cortex" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/cortex" >> $out/create_masks_cmds
 fi
 
 #$FSLDIR/bin/fslmaths $out/right/cortex -add $out/left/cortex -bin $out/cortex
