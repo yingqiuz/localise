@@ -320,5 +320,5 @@ else
   fi;
   fsl_sub -q $queue -N create_masks -l $out/logs -t "$out/create_masks_cmds"
   fsl_sub -q $queue -N create_masks_scpct -l $out/logs "bash $out/create_masks_scpct_cmds"
-  echo "jobs submitted. Logs will be stored uder $out/logs."
+  echo "jobs submitted. Logs will be stored under $out/logs."
 fi
