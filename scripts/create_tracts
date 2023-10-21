@@ -292,7 +292,9 @@ if [ ! -d $out ]; then
   mkdir -p $out
 fi
 
-rm $out/create_tracts_cmds
+if [ -f $out/create_tracts_cmds ]; then
+  rm $out/create_tracts_cmds
+fi
 # for left and right hemispheres
 for hemi in left right; do
   if [ ! -d $out/$hemi ]; then
