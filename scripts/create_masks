@@ -80,34 +80,69 @@ do
     -h|--help)
     Usage
     ;;
-    -r|--ref=*)
-    ref="${arg#*=}"
-    shift
-    ;;
-    -o|--out=*)
-    out="${arg#*=}"
-    shift
-    ;;
-    -w|--warp=*)
-    warp="${arg#*=}"
-    shift
-    ;;
-    -a|--aparc=*)
-    aparc="${arg#*=}"
-    shift
-    ;;
-    -b|--brainmask=*)
-    brainmask="${arg#*=}"
-    shift
-    ;;
-    -q|--queue=*)
-    queue="${arg#*=}"
-    shift
-    ;;
-    -n|--njobs=*)
-    njobs="${arg#*=}"
-    shift
-    ;;
+    -r|--ref)
+      if [[ "$1" == "--ref" && "$2" == *=* ]]; then
+          ref="${2#*=}"
+          shift 2
+      else
+          ref="$2"
+          shift 2
+      fi
+      ;;
+    -o|--out)
+      if [[ "$1" == "--out" && "$2" == *=* ]]; then
+          out="${2#*=}"
+          shift 2
+      else
+          out="$2"
+          shift 2
+      fi
+      ;;
+    -w|--warp)
+      if [[ "$1" == "--warp" && "$2" == *=* ]]; then
+          warp="${2#*=}"
+          shift 2
+      else
+          warp="$2"
+          shift 2
+      fi
+      ;;
+    -a|--aparc)
+      if [[ "$1" == "--aparc" && "$2" == *=* ]]; then
+          aparc="${2#*=}"
+          shift 2
+      else
+          aparc="$2"
+          shift 2
+      fi
+      ;;
+    -b|--brainmask)
+      if [[ "$1" == "--brainmask" && "$2" == *=* ]]; then
+          brainmask="${2#*=}"
+          shift 2
+      else
+          brainmask="$2"
+          shift 2
+      fi
+      ;;
+    -q|--queue)
+      if [[ "$1" == "--queue" && "$2" == *=* ]]; then
+          queue="${2#*=}"
+          shift 2
+      else
+          queue="$2"
+          shift 2
+      fi
+      ;;
+    -n|--njobs)
+      if [[ "$1" == "--njobs" && "$2" == *=* ]]; then
+          njobs="${2#*=}"
+          shift 2
+      else
+          njobs="$2"
+          shift 2
+      fi
+      ;;
     *)
     echo "Unknown option: $arg"
     Usage
@@ -300,5 +335,5 @@ if [ -z "$queue" ]; then
 else
   fsl_sub -q $queue -N create_masks -l $out -t "$out/create_masks_cmds"
   fsl_sub -q $queue -N create_masks_scpct -l $out "$out/create_masks_scpct_cmds"
-  echo "jobs submitted."
+  echo "jobs submitted. Logs will be stored uder $out."
 fi
