@@ -341,10 +341,14 @@ done
 if [ -z "$queue" ]; then
   bash $out/create_tracts_cmds
 else
+  if [ ! -d $out/log ]; then
+    mkdir $out/logs
+  fi;
   if $gpu; then
-    fsl_sub -q $queue -c cuda -N create_tracts -l $out -t $out/create_tracts_cmds
+    fsl_sub -q $queue -c cuda -N create_tracts -l $out/logs -t $out/create_tracts_cmds
   else
-    fsl_sub -q $queue -N create_tracts -l $out -t $out/create_tracts_cmds
+    fsl_sub -q $queue -N create_tracts -l $out/logs -t $out/create_tracts_cmds
   fi
+  echo "jobs submitted. Logs will be stored under $out/logs."
 fi
 
