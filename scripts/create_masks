@@ -126,7 +126,9 @@ do
       shift
       ;;
     *)
-    
+      # echo "Error: Invalid argument: $arg"
+      # Usage
+      # exit 1
     ;;
   esac
 done
