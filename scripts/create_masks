@@ -147,9 +147,9 @@ do
             shift
             ;;
         *)
-        echo "Unknown option: $arg"
-        Usage
-        exit 1
+        # echo "Unknown option: $arg"
+        # Usage
+        # exit 1
         ;;
     esac
     ;;
