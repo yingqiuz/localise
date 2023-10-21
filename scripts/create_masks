@@ -81,80 +81,76 @@ do
     Usage
     ;;
     -r|--ref)
-      shift
-      ref="$1"
-      shift
+      if [[ "$1" == "--ref" && "$2" == *=* ]]; then
+          ref="${2#*=}"
+          shift 2
+      else
+          ref="$2"
+          shift 2
+      fi
       ;;
     -o|--out)
-      shift
-      out="$1"
-      shift
+      if [[ "$1" == "--out" && "$2" == *=* ]]; then
+          out="${2#*=}"
+          shift 2
+      else
+          out="$2"
+          shift 2
+      fi
       ;;
     -w|--warp)
-      shift
-      warp="$1"
-      shift
+      if [[ "$1" == "--warp" && "$2" == *=* ]]; then
+          warp="${2#*=}"
+          shift 2
+      else
+          warp="$2"
+          shift 2
+      fi
       ;;
     -a|--aparc)
-      shift
-      aparc="$1"
-      shift
+      if [[ "$1" == "--aparc" && "$2" == *=* ]]; then
+          aparc="${2#*=}"
+          shift 2
+      else
+          aparc="$2"
+          shift 2
+      fi
       ;;
     -b|--brainmask)
-      shift
-      brainmask="$1"
-      shift
+      if [[ "$1" == "--brainmask" && "$2" == *=* ]]; then
+          brainmask="${2#*=}"
+          shift 2
+      else
+          brainmask="$2"
+          shift 2
+      fi
       ;;
     -q|--queue)
-      shift
-      queue="$1"
-      shift
+      if [[ "$1" == "--queue" && "$2" == *=* ]]; then
+          queue="${2#*=}"
+          shift 2
+      else
+          queue="$2"
+          shift 2
+      fi
       ;;
     -n|--njobs)
-      shift
-      njobs="$1"
-      shift
+      if [[ "$1" == "--njobs" && "$2" == *=* ]]; then
+          njobs="${2#*=}"
+          shift 2
+      else
+          njobs="$2"
+          shift 2
+      fi
       ;;
     *)
-    # Check for the pattern with "="
-    case $arg in
-        --ref=*)
-            ref="${arg#*=}"
-            shift
-            ;;
-        --out=*)
-            out="${arg#*=}"
-            shift
-            ;;
-        --warp=*)
-            warp="${arg#*=}"
-            shift
-            ;;
-        --aparc=*)
-            aparc="${arg#*=}"
-            shift
-            ;;
-        --brainmask=*)
-            brainmask="${arg#*=}"
-            shift
-            ;;
-        --queue=*)
-            queue="${arg#*=}"
-            shift
-            ;;
-        --njobs=*)
-            njobs="${arg#*=}"
-            shift
-            ;;
-        *)
-        # echo "Unknown option: $arg"
-        # Usage
-        # exit 1
-        ;;
-    esac
+    # echo "Unknown option: $arg"
+    # Usage
+    # exit 1
     ;;
   esac
 done
+
 
 ### Check if required arguments are provided
 if [ -z "$ref" ]; then
