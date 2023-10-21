@@ -24,7 +24,7 @@ Usage() {
     echo "-p, --sampvox       (Optional) Sample random points within a sphere of radius 'x' mm from the seed voxel center."
     echo "-d, --distthresh    (Optional) Discards samples shorter than this threshold (in mm). Default=0"
     echo "-g, --gpu           (Optional) Use the GPU version of probtractx2."
-    echo "-q, --queue         (Optional) The job queue to submit to. Runs locally by default."
+    echo "-q, --queue         (Optional) The job queue to submit to. Runs locally if unspecified."
     echo ""
     echo "For more detailed information, consult the documentation."
     exit 1
@@ -341,7 +341,7 @@ done
 if [ -z "$queue" ]; then
   bash $out/create_tracts_cmds
 else
-  if gpu; then
+  if $gpu; then
     fsl_sub -q $queue -c cuda -N create_tracts -l $out -t $out/create_tracts_cmds
   else
     fsl_sub -q $queue -N create_tracts -l $out -t $out/create_tracts_cmds
