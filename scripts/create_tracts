@@ -80,63 +80,63 @@ do
     -h|--help)
     Usage
     ;;
-    -s|--seed=*)
+    --seed=*)
     seed="${arg#*=}"
     shift
     ;;
-    -r|--ref=*)
+    --ref=*)
     ref="${arg#*=}"
     shift
     ;;
-    -m|--samples=*)
+    --samples=*)
     samples="${arg#*=}"
     shift
     ;;
-    -o|--out=*)
+    --out=*)
     out="${arg#*=}"
     shift
     ;;
-    -i|--inputdir=*)
+    --inputdir=*)
     inputdir="${arg#*=}"
     shift
     ;;
-    -b|--brainmask=*)
+    --brainmask=*)
     brainmask="${arg#*=}"
     shift
     ;;
-    -x|--xfm=*)
+    --xfm=*)
     xfm="${arg#*=}"
     shift
     ;;
-    -n|--nsteps=*)
+    --nsteps=*)
     nsteps="${arg#*=}"
     shift
     ;;
-    -c|--cthr=*)
+    --cthr=*)
     cthr="${arg#*=}"
     shift
     ;;
-    -v|--verbose=*)
+    --verbose=*)
     verbose="${arg#*=}"
     shift
     ;;
-    -l|--steplength=*)
+    --steplength=*)
     steplength="${arg#*=}"
     shift
     ;;
-    -j|--nsamples=*)
+    --nsamples=*)
     nsamples="${arg#*=}"
     shift
     ;;
-    -f|--fibthresh=*)
+    --fibthresh=*)
     fibthresh="${arg#*=}"
     shift
     ;;
-    -p|--sampvox=*)
+    --sampvox=*)
     sampvox="${arg#*=}"
     shift
     ;;
-    -d|--distthresh=*)
+    --distthresh=*)
     distthresh="${arg#*=}"
     shift
     ;;
@@ -144,14 +144,94 @@ do
     prog="probtrackx2_gpu"
     shift
     ;;
-    -q|--queue=*)
+    --queue=*)
     queue="${arg#*=}"
     shift
     ;;
+    -s|--seed)
+    seed=$2
+    shift
+    shift
+    ;;
+    -r|--ref)
+    ref=$2
+    shift
+    shift
+    ;;
+    -m|--samples)
+    samples=$2
+    shift
+    shift
+    ;;
+    -o|--out)
+    out=$2
+    shift
+    shift
+    ;;
+    -i|--inputdir)
+    inputdir=$2
+    shift
+    shift
+    ;;
+    -b|--brainmask)
+    brainmask=$2
+    shift
+    shift
+    ;;
+    -x|--xfm)
+    xfm=$2
+    shift
+    shift
+    ;;
+    -n|--nsteps)
+    nsteps=$2
+    shift
+    shift
+    ;;
+    -c|--cthr)
+    cthr=$2
+    shift
+    shift
+    ;;
+    -v|--verbose)
+    verbose=$2
+    shift
+    shift
+    ;;
+    -l|--steplength)
+    steplength=$2
+    shift
+    shift
+    ;;
+    -j|--nsamples)
+    nsamples=$2
+    shift
+    shift
+    ;;
+    -f|--fibthresh)
+    fibthresh=$2
+    shift
+    shift
+    ;;
+    -p|--sampvox)
+    sampvox=$2
+    shift
+    shift
+    ;;
+    -d|--distthresh)
+    distthresh=$2
+    shift
+    shift
+    ;;
+    -q|--queue)
+    queue=$2
+    shift
+    shift
+    ;;
     *)
-    echo "Unknown option: $arg"
-    Usage
-    exit 1
+    # echo "Unknown option: $arg"
+    # Usage
+    # exit 1
     ;;
   esac
 done
