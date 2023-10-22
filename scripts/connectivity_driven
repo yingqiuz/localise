@@ -2,7 +2,7 @@
 
 Usage() {
     echo ""
-    echo "Usage: ./connectivity_driven.sh --target1=m1.nii.gz --target2=cerebellum.nii.gz"
+    echo "Usage: connectivity_driven --target1=m1.nii.gz --target2=cerebellum.nii.gz"
     echo ""
     echo "creates anatomical masks in reference space (--ref) for tractography and stores them in the output dir (--out)"
     echo "if the cortical parcellation file (--aparc) not provided, uses standard masks instead"
