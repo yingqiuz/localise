@@ -2,7 +2,7 @@
 
 Usage() {
     echo ""
-    echo "Usage: ./create_tracts.sh -i subj001/roi -m subj001/dMRI.bedpostX -s seed.nii.gz"
+    echo "Usage: create_tracts.sh -i subj001/roi -m subj001/dMRI.bedpostX -s seed.nii.gz"
     echo ""
     echo "creates tracts for the specified seed, using fiber samples estimated via BedpostX"
     echo ""
