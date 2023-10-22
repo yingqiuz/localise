@@ -16,16 +16,20 @@ To use Localise, first install it using pip:
    (.venv) $ cd python-localise 
    (.venv) $ pip install .
 
-Detailed Usage
--------------------
+Prepare Your Data
+-----------------
 To localise a surgical target, you need to generate connectivity features using tractography 
 from your diffusion MRI data. 
-If you haven't already done this, please refer to the steps in :ref:`Prepare your data <prepare>`.
+If you haven't already done this, please refer to the following steps. 
+In this section, we guide you through the process of generating connectivity features, 
+which are essential for localising surgical targets using our toolbox.
 If you have already got your connectivity data and are ready to train or apply a model, 
-proceed to :ref:`Localise a target <localise>`.
+proceed to :ref:`Localise A Target <localise>` instead.
 
 .. toctree::
    :maxdepth: 1
 
-   usage_details/prepare.rst
-   usage_details/localise.rst
+   prepare/prerequisites.rst
+   prepare/estimate.rst
+   prepare/create_masks.rst
+   prepare/create_tracts.rst
