@@ -2,9 +2,9 @@
 
 Usage() {
     echo ""
-    echo "Usage: create_masks.sh --ref=subj001/t1.nii.gz --warp=subj001/standard2str.nii.gz --out=subj001/roi --aparc=subj001/aparc.a2009s+aseg.nii.gz"
+    echo "Usage: create_masks --ref=subj001/t1.nii.gz --warp=subj001/standard2str.nii.gz --out=subj001/roi --aparc=subj001/aparc.a2009s+aseg.nii.gz"
     echo "       or with short flags:"
-    echo "       create_masks.sh -r subj001/t1.nii.gz -w subj001/standard2str.nii.gz -o subj001/roi -a subj001/aparc.a2009s+aseg.nii.gz"
+    echo "       create_masks -r subj001/t1.nii.gz -w subj001/standard2str.nii.gz -o subj001/roi -a subj001/aparc.a2009s+aseg.nii.gz"
     echo ""
     echo "Description:"
     echo "  Creates anatomical masks in reference space (--ref) for tractography and stores them in the output directory (--out)."
