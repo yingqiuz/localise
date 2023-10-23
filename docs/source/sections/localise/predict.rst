@@ -3,15 +3,13 @@
 Localise A Target Using Pre-trained Model
 =========================================
 
-This section shows how to localise a target using a pre-trained model.
+This section shows how to localise a target using a pre-trained model, 
+either the default models released with the package or a custom model trained by yourself.
+Ensure you've generated the required tract-density maps for your choice of seed mask before starting.
+You can either use the :ref:`Command Line Interface <cli>` or the :ref:`Python Interface <python>`.
 
-.. _cli:
+.. toctree::
+    :maxdepth: 2
 
-Command Line Interface
-----------------------
-
-For a comprehensive list of available commands and options, enter:
-
-.. code-block:: bash
-
-    localise --help
+    cli.rst
+    py.rst
