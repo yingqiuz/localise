@@ -37,8 +37,8 @@ proceed to :ref:`Localise A Target <localise>` instead.
    prepare/create_masks.rst
    prepare/create_tracts.rst
 
-Localise A Target
------------------
+Localise A Target (Predict Mode)
+--------------------------------
 
 If you haven't generated tract-density maps (i.e., connectivity features) required to
 run the localise model, please follow the steps in :ref:`Prepare Your Data <prepare>`, 
@@ -49,10 +49,11 @@ using our pre-trained model, or a custom model tailored for your own data.
    :maxdepth: 1
 
    localise/prerequisites.rst
-   localise/predict.rst
+   localise/cli.rst
+   localise/py.rst
 
-Train A Custom Model For Your Data
-----------------------------------
+Train A Custom Model For Your Data (Train Mode)
+-----------------------------------------------
 
 It happens that the pre-trained models released with the tool may not work well for your data,
 or the structure you want to localise is not included in the pre-trained models.
@@ -62,4 +63,5 @@ In this case, you can train a custom model tailored for your own data.
    :maxdepth: 1
 
    train/prerequisites.rst
-   train/train.rst
+   train/cli.rst
+   train/python.rst
