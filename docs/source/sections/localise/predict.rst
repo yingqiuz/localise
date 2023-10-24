@@ -1,7 +1,7 @@
 .. _predict_mode:
 
-Localise A Target Using Pre-trained Model
-=========================================
+Localise A Target Using Pre-trained Model (Predict Mode)
+========================================================
 
 This section shows how to localise a target using a pre-trained model, 
 either the default models released with the package or a custom model trained by yourself.

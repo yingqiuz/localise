@@ -102,6 +102,8 @@ For Vim models, refer to ``resources/data/vim_default_targets.txt``.
 It will creates a folder ``predictions`` under ``subj001`` containing the localised structure 
 ``vim.nii.gz`` for left and right thalamus.
 
+.. _prediction_mode:
+
 Example II: Localise A Target Using Your Own Pre-trained Models
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
