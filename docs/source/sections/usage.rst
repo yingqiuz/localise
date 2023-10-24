@@ -46,7 +46,7 @@ otherwise you can proceed with the following steps to either localise a surgical
 using our pre-trained model, or a custom model tailored for your own data.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    localise/prerequisites.rst
    localise/predict.rst
@@ -59,7 +59,7 @@ or the structure you want to localise is not included in the pre-trained models.
 In this case, you can train a custom model tailored for your own data.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    train/prerequisites.rst
    train/train.rst
