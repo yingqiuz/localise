@@ -43,10 +43,23 @@ Localise A Target
 If you haven't generated tract-density maps (i.e., connectivity features) required to
 run the localise model, please follow the steps in :ref:`Prepare Your Data <prepare>`, 
 otherwise you can proceed with the following steps to either localise a surgical target
-using our pre-trained model, or train a new model tailored for your own data.
+using our pre-trained model, or a custom model tailored for your own data.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    localise/prerequisites.rst
    localise/predict.rst
+
+Train A Custom Model For Your Data
+----------------------------------
+
+It happens that the pre-trained models released with the tool may not work well for your data,
+or the structure you want to localise is not included in the pre-trained models.
+In this case, you can train a custom model tailored for your own data.
+
+.. toctree::
+   :maxdepth: 2
+
+   train/prerequisites.rst
+   train/train.rst
