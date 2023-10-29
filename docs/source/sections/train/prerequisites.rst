@@ -1,12 +1,18 @@
-.. _prerequisites2:
+.. _prerequisites-train:
 
-Prerequisites
-=============
+Prerequisites for Custom Model Training
+=======================================
 
-To train a custom model, you will need the anatomical masks 
-and tract-density maps as created in :ref:`Prepare Your Data <prepare>`, 
-as well as the training labels.
-For example, your files could be organised as follows:
+Before you can train a custom model, 
+ensure you have the necessary anatomical masks, tract-density maps. 
+This data should have been prepared according to the :ref:`Prepare Your Data <prepare>` section.
+Different from the :ref:`Predict Mode <prerequisites-predict>``, You will also need the the training labels.
+
+Recommended Data Structure:
+---------------------------
+
+A logical and consistent organisation of your files is crucial for a smooth training process. 
+Here's a suggested structure:
 
 .. code-block:: console
     
@@ -33,3 +39,10 @@ For example, your files could be organised as follows:
     └── otherfiles
     subject002/
     subject003/
+
+Details:
+- ``tracts`` directory contains tract-density maps, categorised by hemisphere.
+- ``roi`` directory stores anatomical masks, also sorted by hemisphere.
+- ``training-labels`` directory holds the training labels for each hemisphere.
+
+By following this structure, you'll ensure that the training process is straightforward and efficient.
