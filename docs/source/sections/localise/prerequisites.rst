@@ -1,14 +1,18 @@
-.. _prerequisites2:
+.. _prerequisites-predict:
 
-Prerequisites
-=============
+Prerequisites for Data Organisation
+===================================
 
-You will need the tract-density maps within the seed mask to localise the target of your choice.
-For example, you may want to localise the ventral intermediate of the thalamus (Vim) within the thalamic masks.
-It is strongly recommended to organise the files for each subject consistently. 
-For example, the anatomical masks were stored under ``roi/left/`` and ``roi/left/``
-under the directory of each subject; the tract-density maps were stored under
-``tracts/left`` and ``tracts/right``. 
+For effective target localisation, you'll need tract-density maps corresponding to your chosen seed mask. 
+For instance, if you aim to localise the ventral intermediate nucleus of the thalamus (Vim) within thalamic masks, 
+ensure you have the necessary tract-density maps.
+
+Consistent Data Organization:
+-----------------------------
+
+It's crucial to maintain a consistent file organization across subjects. 
+Adopting this consistency simplifies further steps in the analysis pipeline. 
+Below is a suggested file structure:
 
 .. code-block:: console
     
@@ -31,7 +35,9 @@ under the directory of each subject; the tract-density maps were stored under
     subject002/
     subject003/
 
-Orgaising the files consistently will simply the steps forward. 
-If you have created your masks and tract-density maps by following 
-:ref:`Prepare Your Data <prepare>`, then the necessary files should have already been
-organised consistently.
+For example:
+- Anatomical masks can be stored in directories like ``roi/left/`` and ``roi/right/`` for each subject.
+- Tract-density maps can be placed in ``tracts/left`` and ``tracts/right``.
+
+If you've prepared your masks and tract-density maps following the :ref:`Prepare Your Data <prepare>` guide, 
+your files should already be in this consistent format.

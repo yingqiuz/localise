@@ -1,4 +1,4 @@
-.. _cli:
+.. _cli-predict:
 
 Command Line Interface
 ----------------------

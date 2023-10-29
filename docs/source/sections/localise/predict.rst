@@ -1,12 +1,20 @@
 .. _predict_mode:
 
-Localise A Target Using Pre-trained Model (Predict Mode)
-========================================================
+Using Pre-trained Models for Target Localization (Predict Mode)
+==============================================================
 
-This section shows how to localise a target using a pre-trained model, 
-either the default models released with the package or a custom model trained by yourself.
-Ensure you've generated the required tract-density maps for your choice of seed mask before starting.
-You can either use the :ref:`Command Line Interface <cli>` or the :ref:`Python Interface <python>`.
+This guide walks you through the process of localizing a target using either:
+
+1. Default models provided with this package.
+2. Your custom-trained model.
+
+Before proceeding, ensure that the necessary tract-density maps related to your selected seed mask have been generated. 
+You have the flexibility to carry out the localization via:
+
+- The :ref:`Command Line Interface (CLI) <cli-predict>`.
+- The :ref:`Python Interface <python-predict>`.
+
+Choose the method that fits your needs.
 
 .. toctree::
     :maxdepth: 2
