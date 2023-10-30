@@ -1,9 +1,9 @@
 .. _predict_mode:
 
-Using Pre-trained Models for Target Localization (Predict Mode)
-==============================================================
+Tutorials for Localising a Target
+=================================
 
-This guide walks you through the process of localizing a target using either:
+This guide walks you through the process of localising a target using either:
 
 1. Default models provided with this package.
 2. Your custom-trained model.
@@ -19,5 +19,5 @@ Choose the method that fits your needs.
 .. toctree::
     :maxdepth: 2
 
-    cli.rst
-    py.rst
+    tutorials/cli
+    tutorials/py

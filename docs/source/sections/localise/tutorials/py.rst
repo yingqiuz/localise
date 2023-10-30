@@ -11,10 +11,10 @@ enabling more granular control over both the training and prediction processes.
 This documentation provides step-by-step examples of how to utilise the Python API to 
 localise a target with pre-trained and custom models.
 
-Localize A Target Using Default Models
+Localise A Target Using Default Models
 --------------------------------------
 
-In this section, we will demonstrate how to localize the Vim in the **left** thalamus using the default pre-trained model.
+In this section, we will demonstrate how to localise the Vim in the **left** thalamus using the default pre-trained model.
 
 1. **Setup & Import Necessary Modules**
 
@@ -58,7 +58,7 @@ In this section, we will demonstrate how to localize the Vim in the **left** tha
     for prediction, subject in zip(predictions, test_list):
         save_nifti_4D(prediction, os.path.join(subject, mask_name), os.path.join(subject, 'predictions'))
 
-Localize A Target Using Custom Models
+Localise A Target Using Custom Models
 -------------------------------------
 
 1. **Setup & Import Necessary Modules**
