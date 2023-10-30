@@ -101,10 +101,19 @@ def get_subjects(subject_path):
 
 
 def predict_mode(subject, mask, structure=None, target_path=None, target_list=None, 
-                 data=None, atlas=None, out=None, model=None, spatial=True, data_type=None):
+                 data=None, atlas=None, out=None, model=None, spatial=True, 
+                 data_type=None, hemisphere='left'):
 
     logging.info('Predict mode on.\n')
     subjects = get_subjects(subject)
+    
+    #### TODO: add hemisphere option
+    if hemisphere.lower() in ['left', 'l']:
+        hemisphere = 'left'
+    elif hemisphere.lower() in ['right', 'r']:
+        hemisphere = 'right'
+    else:
+        raise ValueError(f'Invalid hemisphere: {hemisphere}. Please specify left or right.')
 
     if model is None:
         # error checking
@@ -114,16 +123,17 @@ def predict_mode(subject, mask, structure=None, target_path=None, target_list=No
             raise ValueError('When using the default model, you must specify the data_type.')
 
         logging.info(f'Using the default model for {structure} on {data_type}.')
+        
         # load the default model.
         model_dir = os.path.join(PKG_PATH, 'resources', 'models', structure, data_type)
-        model_name = f'{structure}_spatial_model.pth' if spatial else f'{structure}_model.pth'
+        model_name = f'spatial_model.pth' if spatial else f'model.pth'
         model = os.path.join(model_dir, model_name)
 
         if not os.path.exists(model):
             raise ValueError(f'We dont have a pretrained model for {structure} {data_type}.')
 
         target_list_fname = os.path.join(PKG_PATH, 'resources', 'data', 
-                                         f'{structure}_default_target_list.txt')
+                                         f'{structure}_default_target_list160.txt')
         # checking whether or not to use default
         if data is None and target_list is None:
             # load default target list
