@@ -125,8 +125,8 @@ def predict_mode(subject, mask, structure=None, target_path=None, target_list=No
         logging.info(f'Using the default model for {structure} on {data_type}.')
         
         # load the default model.
-        model_dir = os.path.join(PKG_PATH, 'resources', 'models', structure, data_type)
-        model_name = f'spatial_model.pth' if spatial else f'model.pth'
+        model_dir = os.path.join(PKG_PATH, 'resources', 'models', structure, data_type, hemisphere)
+        model_name = 'spatial_model.pth' if spatial else 'model.pth'
         model = os.path.join(model_dir, model_name)
 
         if not os.path.exists(model):
@@ -156,6 +156,9 @@ def predict_mode(subject, mask, structure=None, target_path=None, target_list=No
                 raise ValueError("Please specify --target_list if you didn't specify --data when you are not using the default model.")        
 
     # load connectivity features
+    if not spatial:
+        atlas = None
+
     data = [
         load_features(
             subject=subject, 
@@ -163,7 +166,8 @@ def predict_mode(subject, mask, structure=None, target_path=None, target_list=No
             target_path=target_path, 
             target_list=target_list, 
             data=data, 
-            atlas=atlas
+            atlas=atlas,
+            power=[2, 1, 0.5]
         ) 
         for subject in subjects
     ]
