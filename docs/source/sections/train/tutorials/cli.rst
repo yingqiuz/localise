@@ -1,5 +1,5 @@
 
-.. _cli:
+.. _cli-train:
 
 Command Line Interface
 ======================
