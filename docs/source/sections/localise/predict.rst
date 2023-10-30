@@ -18,6 +18,7 @@ Choose the method that fits your needs.
 
 .. toctree::
     :maxdepth: 2
+    :caption: Contents:
 
     tutorials/cli
     tutorials/py

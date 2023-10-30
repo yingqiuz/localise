@@ -17,6 +17,7 @@ Check out the :ref:`Usage <usage>` section for further information, including ho
    :maxdepth: 3
    :caption: Contents:
    
+   sections/installation
    sections/usage
    sections/api
    sections/ref

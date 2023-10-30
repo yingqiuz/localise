@@ -15,7 +15,8 @@ For training, you have two primary methods:
 Choose the method that best fits your workflow.
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
+    :caption: Contents:
 
     tutorials/cli
     tutorials/python
