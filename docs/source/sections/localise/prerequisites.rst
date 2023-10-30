@@ -36,6 +36,7 @@ Below is a suggested file structure:
     subject003/
 
 For example:
+
 - Anatomical masks can be stored in directories like ``roi/left/`` and ``roi/right/`` for each subject.
 - Tract-density maps can be placed in ``tracts/left`` and ``tracts/right``.
 
