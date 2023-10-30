@@ -32,10 +32,10 @@ proceed to :ref:`Localise A Target <localise>` instead.
 .. toctree::
    :maxdepth: 1
 
-   prepare/prerequisites.rst
-   prepare/estimate.rst
-   prepare/create_masks.rst
-   prepare/create_tracts.rst
+   prepare/prerequisites
+   prepare/estimate
+   prepare/create_masks
+   prepare/create_tracts
 
 Localise A Target (Predict Mode)
 --------------------------------
@@ -48,9 +48,8 @@ using our pre-trained model, or a custom model tailored for your own data.
 .. toctree::
    :maxdepth: 1
 
-   localise/prerequisites.rst
-   localise/cli.rst
-   localise/py.rst
+   localise/prerequisites
+   localise/predict
 
 Train A Custom Model For Your Data (Train Mode)
 -----------------------------------------------
@@ -62,6 +61,5 @@ In this case, you can train a custom model tailored for your own data.
 .. toctree::
    :maxdepth: 1
 
-   train/prerequisites.rst
-   train/cli.rst
-   train/python.rst
+   train/prerequisites
+   train/train

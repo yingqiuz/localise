@@ -11,7 +11,7 @@ Check out the :ref:`Usage <usage>` section for further information, including ho
 
 .. note::
 
-   This project is under active development.
+   This project is under active development, and the API might still change substantially at any time!
 
 .. toctree::
    :maxdepth: 3
@@ -19,11 +19,13 @@ Check out the :ref:`Usage <usage>` section for further information, including ho
    
    sections/usage
    sections/api
+   sections/ref
 
+Contributors
+============
 
-Indices and tables
-==================
+The original toolbox was written by Ying-Qiu Zheng
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Other Contributors:
+
+- Saad Jbabdi
