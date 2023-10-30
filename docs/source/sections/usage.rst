@@ -32,6 +32,8 @@ you can skip ahead to :ref:`Localise A Target <localise>`.
    prepare/create_masks
    prepare/create_tracts
 
+.. _localise:
+
 Localise A Target (Predict Mode)
 --------------------------------
 
