@@ -2,7 +2,7 @@
 
 Usage() {
     echo ""
-    echo "Usage: ./create_tracts.sh -i subj001/roi -m subj001/dMRI.bedpostX -s seed.nii.gz"
+    echo "Usage: create_tracts -i subj001/roi -m subj001/dMRI.bedpostX -s seed.nii.gz"
     echo ""
     echo "creates tracts for the specified seed, using fiber samples estimated via BedpostX"
     echo ""
@@ -15,7 +15,7 @@ Usage() {
     echo "                               Necessary if diffusion is not aligned to the reference T1 space."
     echo "-r, --ref           (Optional) Reference image, usually in the individual T1 native space."
     echo "                               Necessary if xfm (-x) is specified."
-    echo "-b, --brainmask     (Optional) Binary brain mask in the reference space."
+    echo "-b, --brainmask     (Optional) Binary brain mask in the diffusion space."
     echo "-n, --nsteps        (Optional) Number of steps per sample. Default=2000"
     echo "-c, --cthr          (Optional) Curvature threshold. Default=0.2"
     echo "-f, --fibthresh     (Optional) Volume fraction threshold before considering subsidiary fibre orientations. Default=0.01"
