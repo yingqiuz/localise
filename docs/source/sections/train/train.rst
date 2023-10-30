@@ -1,7 +1,7 @@
 .. _train_mode:
 
-Train a Custom Model For Your Data or Target (Train Mode)
-=========================================================
+Tutorials for Training a Custom Model
+=====================================
 
 This section outlines the steps to train a custom model specific to your data or target. 
 Before diving in, ensure you have all the necessary data prepared. 
@@ -17,6 +17,6 @@ Choose the method that best fits your workflow.
 .. toctree::
     :maxdepth: 1
 
-    cli
-    python
+    tutorials/cli
+    tutorials/python
 
