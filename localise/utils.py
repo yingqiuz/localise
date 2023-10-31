@@ -144,12 +144,11 @@ def predict_mode(subject, mask, mask_dir=None, structure=None, target_dir=None, 
     if out is None: 
         raise ValueError('Please specify the output name.')
 
-    if atlas is not None:
-        if atlas == 'default':
-            if structure is None:
-                raise ValueError('Please specify the structure (--structure, -s) if using the default atlases.')
-            atlas = f'{structure}.nii.gz'
-        atlas = os.path.join(mask_dir, hemisphere, atlas)
+    if atlas == 'default':
+        if structure is None:
+            raise ValueError('Please specify the structure (--structure, -s) if using the default atlases.')
+        # create default atlas path
+        atlas = os.path.join(mask_dir, hemisphere, f'{structure}.nii.gz')
 
     if model is None:
         # error checking

@@ -108,7 +108,7 @@ def test_predict_mode():
     hemisphere = 'left'
     target_dir = 'streamlines'
     target_list = f'{path_to_data}/models/vim_default_target_list160.txt'
-    atlas = 'vim.nii.gz'
+    atlas = 'roi/left/vim.nii.gz'
     out = 'roi/left/prediction.nii.gz'
     model = f'{path_to_data}/models/tmp_model160_2mm_single32.pth'
 
