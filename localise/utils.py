@@ -99,21 +99,57 @@ def get_subjects(subject_path):
     else:
         raise ValueError(f'Invalid subject path: {subject_path}. Please specify a correct subject dir or txt file.')
 
+def return_hemisphere(hemisphere):
+    ## a function to check hemisphere
+    if isinstance(hemisphere, str):
+        if hemisphere.lower() in ['left', 'l']:
+            hemisphere = 'left'
+        elif hemisphere.lower() in ['right', 'r']:
+            hemisphere = 'right'
+        else:
+            raise ValueError(f'Invalid hemisphere: {hemisphere}. Please specify left or right.')
+    else:
+        raise ValueError(f'Invalid hemisphere: {hemisphere}. Please specify left or right.')
 
-def predict_mode(subject, mask, structure=None, target_path=None, target_list=None, 
-                 data=None, atlas=None, out=None, model=None, spatial=True, 
-                 data_type=None, hemisphere='left'):
+    return hemisphere
+
+def check_params(mask, mask_dir, target_dir, data, hemisphere):
+    # create mask name
+    if mask_dir is None:
+        raise ValueError('Please specify the directory for anatomical masks (relative to the subject folder).')
+
+    mask = os.path.join(mask_dir, hemisphere, mask)
+
+    # create target_path
+    if target_dir is None:
+        raise ValueError('Please specify the directory for target masks (relative to the subject folder).')
+
+    target_path = os.path.join(target_dir, hemisphere)
+
+    if data is not None:
+        data = os.path.join(target_dir, hemisphere, data)
+    
+    return mask, mask_dir, target_path, data
+
+def predict_mode(subject, mask, mask_dir=None, structure=None, target_dir=None, target_list=None, 
+                 data=None, atlas='default', out=None, model=None, spatial=True, 
+                 data_type=None, hemisphere=None):
 
     logging.info('Predict mode on.\n')
     subjects = get_subjects(subject)
-    
-    #### TODO: add hemisphere option
-    if hemisphere.lower() in ['left', 'l']:
-        hemisphere = 'left'
-    elif hemisphere.lower() in ['right', 'r']:
-        hemisphere = 'right'
-    else:
-        raise ValueError(f'Invalid hemisphere: {hemisphere}. Please specify left or right.')
+    hemisphere = return_hemisphere(hemisphere)
+    mask, mask_dir, target_path, data = check_params(mask, mask_dir, target_dir, data, hemisphere)
+
+    # create output name
+    if out is None: 
+        raise ValueError('Please specify the output name.')
+
+    if atlas is not None:
+        if atlas == 'default':
+            if structure is None:
+                raise ValueError('Please specify the structure (--structure, -s) if using the default atlases.')
+            atlas = f'{structure}.nii.gz'
+        atlas = os.path.join(mask_dir, hemisphere, atlas)
 
     if model is None:
         # error checking
@@ -133,7 +169,7 @@ def predict_mode(subject, mask, structure=None, target_path=None, target_list=No
             raise ValueError(f'We dont have a pretrained model for {structure} {data_type}.')
 
         target_list_fname = os.path.join(PKG_PATH, 'resources', 'data', 
-                                         f'{structure}_default_target_list160.txt')
+                                         f'{structure}_default_target_list.txt')
         # checking whether or not to use default
         if data is None and target_list is None:
             # load default target list
@@ -181,9 +217,9 @@ def predict_mode(subject, mask, structure=None, target_path=None, target_list=No
     return predictions
 
 
-def train_mode(subject, mask, label, target_path=None,
+def train_mode(subject, mask, label, mask_dir=None, target_path=None,
                target_list=None, data=None, atlas=None, out_model=None, 
-               spatial=True, epochs=100):
+               spatial=True, hemisphere=None, epochs=100):
     
     logging.info('Training mode on.\n')
     subjects = get_subjects(subject)
