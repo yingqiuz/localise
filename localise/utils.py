@@ -216,18 +216,17 @@ def predict_mode(subject, mask, mask_dir=None, structure=None, target_dir=None, 
     return predictions
 
 
-def train_mode(subject, mask, label, mask_dir=None, target_path=None,
+def train_mode(subject, mask, label, mask_dir=None, target_dir=None,
                target_list=None, data=None, atlas=None, out_model=None, 
                spatial=True, hemisphere=None, epochs=100):
     
     logging.info('Training mode on.\n')
     subjects = get_subjects(subject)
-    
+    hemisphere = return_hemisphere(hemisphere)
+    mask, mask_dir, target_path, data = check_params(mask, mask_dir, target_dir, data, hemisphere)
+
     if data is None and target_list is None:
         raise ValueError("Please specify --target_list if you didn't specify --data.")
-    
-    if data is None and target_path is None:
-        raise ValueError("Please specify --target_path if you didn't specify --data.")
     
     data = [
         load_data(
