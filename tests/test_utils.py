@@ -149,15 +149,16 @@ def test_predict_mode():
 
 def test_train_mode():
     subject = f'{path_to_data}/100206'
-    mask = 'roi/left/tha_small.nii.gz'
+    mask_dir = 'roi'
+    mask = 'tha_small.nii.gz'
     label = 'high-quality-labels/left/labels.nii.gz'
-    target_path = 'streamlines/left'
+    target_dir = 'streamlines'
     target_list = f'{path_to_data}/models/targets_list113_left.txt'
     atlas = 'roi/left/atlas.nii.gz'
     out_model = f'{path_to_data}/models/test_model.pth'
 
-    train_mode(subject=subject, mask=mask, label=label, target_path=target_path, 
-               target_list=target_list, atlas=atlas, out_model=out_model)
+    train_mode(subject=subject, mask=mask, label=label, mask_dir=mask_dir, target_dir=target_dir,
+               target_list=target_list, atlas=atlas, out_model=out_model, hemisphere='left')
     
     assert os.path.isfile(out_model)
     os.remove(out_model)
