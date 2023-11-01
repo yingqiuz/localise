@@ -161,4 +161,7 @@ def parse_arguments():
         if args.structure is None and args.model is None:
             p.error('Please specify the structure to be localised or the pre-trained model for prediction.')
 
+        if args.model is None and args.data_type is None:
+            p.error('When using the default model, you must specify the data_type.')
+
     return args

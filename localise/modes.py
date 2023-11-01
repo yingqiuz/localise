@@ -52,7 +52,10 @@ def check_params(mask, mask_dir, target_dir, data, hemisphere):
 
 def predict_mode(subject, mask, mask_dir=None, structure=None, target_dir=None, target_list=None, 
                  data=None, atlas='default', out=None, model=None, spatial=True, 
-                 data_type=None, hemisphere=None):
+                 data_type=None, hemisphere=None, verbose=True):
+
+    if verbose:
+        logging.basicConfig(level=logging.INFO)
 
     logging.info('Predict mode on.\n')
     subjects = get_subjects(subject)
@@ -128,17 +131,23 @@ def predict_mode(subject, mask, mask_dir=None, structure=None, target_dir=None, 
 
     predictions = apply_pretrained_model(data, model, spatial_model=spatial)
 
+    logging.info('Localise done. Now saving results...')
     # save to nii files
     for subject, prediction in zip(subjects, predictions):
         save_nifti(prediction.detach().numpy()[:, -1], os.path.join(subject, mask), os.path.join(subject, out))
+
+    logging.info('Done.')
 
     return predictions
 
 
 def train_mode(subject, mask, label, mask_dir=None, target_dir=None,
                target_list=None, data=None, atlas=None, out_model=None, 
-               spatial=True, hemisphere=None, epochs=100):
+               spatial=True, hemisphere=None, epochs=100, verbose=True):
     
+    if verbose:
+        logging.basicConfig(level=logging.INFO)
+
     logging.info('Training mode on.\n')
     subjects = get_subjects(subject)
     hemisphere = return_hemisphere(hemisphere)
