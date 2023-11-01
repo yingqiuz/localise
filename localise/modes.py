@@ -51,7 +51,7 @@ def check_params(mask, mask_dir, target_dir, data, hemisphere):
     return mask, mask_dir, target_path, data
 
 def predict_mode(subject, mask, mask_dir=None, structure=None, target_dir=None, target_list=None, 
-                 data=None, atlas='default', out=None, model=None, spatial=True, 
+                 data=None, atlas=None, out=None, model=None, spatial=True, 
                  data_type=None, hemisphere=None, verbose=True):
 
     if verbose:
@@ -83,7 +83,8 @@ def predict_mode(subject, mask, mask_dir=None, structure=None, target_dir=None, 
         
         # load the default model.
         model_dir = os.path.join(PKG_PATH, 'resources', 'models', structure, data_type, hemisphere)
-        model_name = 'spatial_model.pth' if spatial else 'model.pth'
+        model_name = 'spatial_model' if spatial else 'model'
+        model_name = f'{model_name}_with_prior.pth' if atlas is not None else f'{model_name}.pth'
         model = os.path.join(model_dir, model_name)
 
         if not os.path.exists(model):
@@ -111,10 +112,6 @@ def predict_mode(subject, mask, mask_dir=None, structure=None, target_dir=None, 
                 raise ValueError("Please specify --target_path if you didn't specify --data")
             if target_list is None:
                 raise ValueError("Please specify --target_list if you didn't specify --data when you are not using the default model.")        
-
-    # load connectivity features
-    if not spatial:
-        atlas = None
 
     data = [
         load_features(
