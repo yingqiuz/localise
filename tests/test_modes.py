@@ -110,7 +110,7 @@ def test_predict_mode():
 
     predict_mode(subject=subject, mask=mask, mask_dir=mask_dir, target_dir=target_dir, 
                  data='X160_small_1mm.npy', structure='vim', spatial=False,
-                 atlas=atlas, out=out, data_type='2mm_single32', hemisphere=hemisphere)
+                 atlas=None, out=out, data_type='2mm_single32', hemisphere=hemisphere)
 
     assert os.path.isfile(os.path.join(subject, out))
     os.remove(os.path.join(subject, out))
