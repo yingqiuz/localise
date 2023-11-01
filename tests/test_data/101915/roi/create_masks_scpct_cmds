@@ -1,0 +1,8 @@
+echo Create SCPCT-related ROIs...
+/well/win/software/packages/fsl/6.0.6/bin/applywarp -r 101915/T1w_acpc_dc_restore.nii.gz -i /well/win/software/packages/fsl/6.0.6/data/standard/MNI152_T1_1mm_brain_mask -w 101915/standard1_to_native1.25_warp.nii.gz -o 101915/roi/brain_mask --interp=nn
+/well/win/software/packages/fsl/6.0.6/bin/applywarp -r 101915/T1w_acpc_dc_restore.nii.gz -i /well/win-biobank/users/gbb787/python-localise/resources/MNI_roi/left/SCPCT -w 101915/standard1_to_native1.25_warp.nii.gz -o 101915/roi/left/SCPCT
+/well/win/software/packages/fsl/6.0.6/bin/fslmaths 101915/roi/left/SCPCT -thr 0.0001 -bin 101915/roi/left/SCPCT_bin
+/well/win/software/packages/fsl/6.0.6/bin/fslmaths 101915/roi/brain_mask -rem 101915/roi/left/SCPCT_bin -bin -rem 101915/roi/left/tha -bin 101915/roi/left/stop_for_scpct
+/well/win/software/packages/fsl/6.0.6/bin/applywarp -r 101915/T1w_acpc_dc_restore.nii.gz -i /well/win-biobank/users/gbb787/python-localise/resources/MNI_roi/right/SCPCT -w 101915/standard1_to_native1.25_warp.nii.gz -o 101915/roi/right/SCPCT
+/well/win/software/packages/fsl/6.0.6/bin/fslmaths 101915/roi/right/SCPCT -thr 0.0001 -bin 101915/roi/right/SCPCT_bin
+/well/win/software/packages/fsl/6.0.6/bin/fslmaths 101915/roi/brain_mask -rem 101915/roi/right/SCPCT_bin -bin -rem 101915/roi/right/tha -bin 101915/roi/right/stop_for_scpct

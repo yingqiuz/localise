@@ -2,23 +2,26 @@
 
 Usage() {
     echo ""
-    echo "Usage: ./create_masks.sh --ref=t1.nii.gz --warp=standard2str.nii.gz --out=outputdir --aparc=aparc.a2009s+aseg.nii.gz"
+    echo "Usage: create_masks --ref=subj001/t1.nii.gz --warp=subj001/standard2str.nii.gz --out=subj001/roi --aparc=subj001/aparc.a2009s+aseg.nii.gz"
+    echo "       or with short flags:"
+    echo "       create_masks -r subj001/t1.nii.gz -w subj001/standard2str.nii.gz -o subj001/roi -a subj001/aparc.a2009s+aseg.nii.gz"
     echo ""
-    echo "creates anatomical masks in reference space (--ref) for tractography and stores them in the output dir (--out)"
-    echo "if the cortical parcellation file (--aparc) not provided, uses standard masks instead"
+    echo "Description:"
+    echo "  Creates anatomical masks in reference space (--ref) for tractography and stores them in the output directory (--out)."
     echo ""
-    echo "<options>:"
-    echo "--ref (the reference image, usually in the individual T1 native space)"
-    echo "--warp (the warp field that maps the MNI standard space to individual T1 space)"
-    echo "--aparc (the cortical segmentation file from Freesurfer, either in *.mgz or *.nii.gz/*.nii)"
-    echo "--out (optional, the output directory to store the anatomical masks. if not provided, create a folder called roi in the same directory as the reference image)"
-    echo "--brainmask (optional, the binary brain mask in the reference space)"
-    echo "--queue (optional, the queue jobs should be submitted to. Run locally if not specified.)"
-    echo "--njobs (optional, the number of jobs to run in parallel locally.)"
-    echo ""
+    echo "Options:"
+    echo "  -r, --ref         The reference image, typically in the individual T1 native space."
+    echo "  -w, --warp        The warp field mapping the MNI standard space to individual T1 space."
+    echo "  -a, --aparc       Cortical segmentation file from Freesurfer (in *.mgz, *.nii.gz, or *.nii formats)."
+    echo "  -o, --out         (Optional) Directory to store the anatomical masks."
+    echo "                               Defaults to a 'roi' folder in the same directory as the reference image."
+    echo "  -b, --brainmask   (Optional) Binary brain mask in the reference space."
+    echo "  -q, --queue       (Optional) Queue for job submissions. Defaults to local execution."
+    echo "  -n, --njobs       (Optional) Number of jobs to run in parallel locally. Defaults to 1."
     echo ""
     exit 1
 }
+
 
 [ "$1" = "" ] && Usage
 
@@ -56,41 +59,76 @@ njobs=1
 for arg in "$@"
 do
   case $arg in
-    --help)
+    -h|--help)
     Usage
     ;;
+    -r|--ref)
+      shift
+      ref="$1"
+      shift
+      ;;
+    -o|--out)
+      shift
+      out="$1"
+      shift
+      ;;
+    -w|--warp)
+      shift
+      warp="$1"
+      shift
+      ;;
+    -a|--aparc)
+      shift
+      aparc="$1"
+      shift
+      ;;
+    -b|--brainmask)
+      shift
+      brainmask="$1"
+      shift
+      ;;
+    -q|--queue)
+      shift
+      queue="$1"
+      shift
+      ;;
+    -n|--njobs)
+      shift
+      njobs="$1"
+      shift
+      ;;
     --ref=*)
-    ref="${arg#*=}"
-    shift
-    ;;
+      ref="${arg#*=}"
+      shift
+      ;;
     --out=*)
-    out="${arg#*=}"
-    shift
-    ;;
+      out="${arg#*=}"
+      shift
+      ;;
     --warp=*)
-    warp="${arg#*=}"
-    shift
-    ;;
+      warp="${arg#*=}"
+      shift
+      ;;
     --aparc=*)
-    aparc="${arg#*=}"
-    shift
-    ;;
+      aparc="${arg#*=}"
+      shift
+      ;;
     --brainmask=*)
-    brainmask="${arg#*=}"
-    shift
-    ;;
+      brainmask="${arg#*=}"
+      shift
+      ;;
     --queue=*)
-    queue="${arg#*=}"
-    shift
-    ;;
+      queue="${arg#*=}"
+      shift
+      ;;
     --njobs=*)
-    njobs="${arg#*=}"
-    shift
-    ;;
+      njobs="${arg#*=}"
+      shift
+      ;;
     *)
-    echo "Unknown option: $arg"
-    Usage
-    exit 1
+      # echo "Error: Invalid argument: $arg"
+      # Usage
+      # exit 1
     ;;
   esac
 done
@@ -178,14 +216,14 @@ if [ ! -z "$aparc" ]; then
     kk=`expr $k - 11100`
     echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/left/$kk" >> $out/create_masks_cmds
   done
-  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/left/cortex" >> $out/create_masks_cmds
+  #echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/cortex" >> $out/create_masks_cmds
   ### right hemisphere cortical masks
   echo "echo Create right hemisphere cortical ROIs based on the provided $aparc file..." >> $out/create_masks_cmds
   for k in {12101..12175}; do
     kk=`expr $k - 12100`
     echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/right/$kk" >> $out/create_masks_cmds
   done
-  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/right/cortex" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/cortex" >> $out/create_masks_cmds
 fi
 
 #$FSLDIR/bin/fslmaths $out/right/cortex -add $out/left/cortex -bin $out/cortex
@@ -277,7 +315,10 @@ if [ -z "$queue" ]; then
   fi
   bash "$out/create_masks_scpct_cmds"
 else
-  fsl_sub -q $queue -N create_masks -l $out -t "$out/create_masks_cmds"
-  fsl_sub -q $queue -N create_masks_scpct -l $out "$out/create_masks_scpct_cmds"
-  echo "jobs submitted."
+  if [ ! -d $out/log ]; then
+    mkdir $out/logs
+  fi;
+  fsl_sub -q $queue -N create_masks -l $out/logs -t "$out/create_masks_cmds"
+  fsl_sub -q $queue -N create_masks_scpct -l $out/logs "bash $out/create_masks_scpct_cmds"
+  echo "jobs submitted. Logs will be stored under $out/logs."
 fi
