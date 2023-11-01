@@ -5,20 +5,10 @@ Prerequisites
 
 This section describes the prerequisites for running the toolbox.
 
-- :ref:`fsl_installation`
 - :ref:`required_data`
 - :ref:`registration`
 - :ref:`cortical` 
 - :ref:`data_organisation`
-
-.. _fsl_installation:
-
-FSL and Freesurfer Installation 
--------------------------------
-
-Before proceeding, make sure you've installed `FSL <https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/>`_ 
-and `Freesurfer <https://surfer.nmr.mgh.harvard.edu/>`_ first, 
-and have environment variables ``$FSLDIR`` and ``FREESURFER_HOME`` set up correctly.
 
 .. _required_data:
 
