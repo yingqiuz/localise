@@ -17,10 +17,10 @@ Required Data
 
 You'll need both T1 and diffusion MRI, preferally bias-corrected.
 
-Ensure that the diffusion and T1 images are properly aligned. 
-This involves producing transformation affine matrices that map between the two spaces. 
+Ensure that the diffusion and T1 images are properly aligned, 
+producing transformation affine matrices that map between the two spaces. 
 You can achieve this using tools from `FSL <https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/>`_. 
-Specifically, you can use `flirt <https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FLIRT/UserGuide>`_ 
+Specifically, you can use FSL's `flirt <https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FLIRT/UserGuide>`_ 
 or `epi_reg <https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FLIRT/UserGuide#epi_reg>`_. 
 
 This usually involves transforming B0 images into the structural (T1) space. If using ``epi_reg``, here's an example:
