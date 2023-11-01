@@ -12,7 +12,6 @@ focusing on the primary tasks: data preparation,
 target localisation, and custom model training. 
 Each step is detailed below.
 
-
 .. _prepare:
 
 Prepare Your Data
