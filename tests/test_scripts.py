@@ -39,6 +39,7 @@ def test_parse_arguments():
                 '--data', 'data.npy',
                 '--hemisphere', 'right',
                 '--structure', 'vim',
+                '--data_type', 'single32',
                 '--out', 'output']):
         args = parse_arguments()
 
@@ -77,6 +78,20 @@ def test_parse_arguments():
                     '--model', 'model.pth',
                     '--atlas', 'default',
                     '--out', 'output']):
+            args = parse_arguments()
+
+    # Testing the prediction mode with default atlas
+    with patch('argparse._sys.argv', 
+               ['localise', '--predict', 
+                '--subject', '/path/to/subject', 
+                '--seed', 'seed.nii.gz',
+                '--mask_dir', 'roi',
+                '--target_dir', 'tracts',
+                '--data', 'data.npy',
+                '--hemisphere', 'right',
+                '--structure', 'vim',
+                '--out', 'output']):
+        with pytest.raises(SystemExit):
             args = parse_arguments()
         
     # Test the missing argument in training mode
