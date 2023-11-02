@@ -41,6 +41,7 @@ Here's a suggested structure:
     subject003/
 
 Details:
+
 - ``tracts`` directory contains tract-density maps, categorised by hemisphere.
 - ``roi`` directory stores anatomical masks, also sorted by hemisphere.
 - ``training-labels`` directory holds the training labels for each hemisphere.
