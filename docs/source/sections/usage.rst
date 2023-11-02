@@ -12,7 +12,6 @@ focusing on the primary tasks: data preparation,
 target localisation, and custom model training. 
 Each step is detailed below.
 
-
 .. _prepare:
 
 Prepare Your Data
@@ -22,7 +21,7 @@ To localise a surgical target, you need to generate connectivity features using 
 from your diffusion MRI data. 
 This section offers a step-by-step guide to help you accomplish that. 
 If you've already prepared your connectivity data and are poised to train or utilise a model, 
-you can skip ahead to :ref:`Localise A Target <localise>`.
+you can skip ahead to :ref:`Localise a Target (Predict Mode) <localise>`.
 
 .. toctree::
    :maxdepth: 1
@@ -34,7 +33,7 @@ you can skip ahead to :ref:`Localise A Target <localise>`.
 
 .. _localise:
 
-Localise A Target (Predict Mode)
+Localise a Target (Predict Mode)
 --------------------------------
 
 If you haven't generated tract-density maps (i.e., connectivity features) required to
@@ -56,8 +55,8 @@ using our pre-trained model, or a custom model tailored for your own data.
    localise/prerequisites
    localise/predict
 
-Train A Custom Model For Your Data (Train Mode)
------------------------------------------------
+Train a Custom Model (Train Mode)
+---------------------------------
 
 Our toolbox comes with pre-trained models. 
 However, there may be instances where these models aren't a perfect fit for your data 
