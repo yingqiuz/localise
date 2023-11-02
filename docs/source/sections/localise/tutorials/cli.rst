@@ -105,7 +105,7 @@ Example I: Localise a target using default models
 This section guides you to localise a target using the pre-trained default model released with the package.
 For example, you want to localise the ventral intermediate nucleus of thalamus (Vim) 
 in the thalamus using the default model. 
-Assume the filetree under ``subj001`` looks like this:
+Assume the file structure under ``subj001`` looks like this:
 
 .. code-block:: console
     
@@ -130,42 +130,42 @@ Assume the filetree under ``subj001`` looks like this:
     ...
 
 1. To localise Vim in left hemisphere without considering the group-average Vim probability map, 
-    for single-shell diffusion data with 32 directions,
-    you need to provide the following arguments:
+   for single-shell diffusion data with 32 directions,
+   you need to provide the following arguments:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
         localise --predict --structure=vim --subject=subj1001 --seed=thalamus.nii.gz \ 
             --mask_dir=masks --target_dir=tracts --out=left_predictions.nii.gz \
             --hemisphere=left --data_type=single32 --spatial 
 
-    It will creates a folder ``left_predictions.nii.gz`` under ``subj001``,
-    containing the predicted location of the structure.
+   It will creates a folder ``left_predictions.nii.gz`` under ``subj001``,
+   containing the predicted location of the structure.
 
 2. To localise Vim in left hemisphere with `atlas_left.nii.gz` as a prior feature,
-    and you don't want the spatial model,
-    you need to provide the following arguments:
+   and you don't want the spatial model,
+   you need to provide the following arguments:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
         localise --predict --structure=vim --subject=subj1001 --seed=thalamus.nii.gz \ 
             --mask_dir=masks --target_dir=tracts --out=left_predictions.nii.gz \
             --hemisphere=left --data_type=single32 --atlas=atlas_left.nii.gz
 
-    It will creates a folder ``left_predictions.nii.gz`` under ``subj001``,
-    containing the predicted location of the structure.
+   It will creates a folder ``left_predictions.nii.gz`` under ``subj001``,
+   containing the predicted location of the structure.
 
 3. If you have prepared your data by following the steps in :ref:`Prepare Your Data <prepare>`,
-    You can also use the default prior feature:
+   You can also use the default prior feature:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
         localise --predict --structure=vim --subject=subj1001 --seed=thalamus.nii.gz \ 
             --mask_dir=masks --target_dir=tracts --out=right_predictions.nii.gz \
             --hemisphere=right --data_type=single32 --atlas=default
 
-    It will creates a folder ``right_predictions.nii.gz`` under ``subj001``,
-    containing the predicted location of the structure.
+   It will creates a folder ``right_predictions.nii.gz`` under ``subj001``,
+   containing the predicted location of the structure.
 
 .. _prediction_mode:
 
@@ -178,10 +178,10 @@ and you've trained your own model using your own target list
 check the following examples:
 
 1. You've trained your own spatial model, e.g., saved as ``/path/to/your_trained_model.pth`` 
-    using your own target list ``/path/to/your_target_list.txt``. 
-    It doesn't use the atlas (group-average probability) map as a prior feature.
-    You want to apply this model to new subjects in ``subjs.txt``, which contains the paths to subject folders.
-    Then you can use the following:
+   using your own target list ``/path/to/your_target_list.txt``. 
+   It doesn't use the atlas (group-average probability) map as a prior feature.
+   You want to apply this model to new subjects in ``subjs.txt``, which contains the paths to subject folders.
+   Then you can use the following:
 
     .. code-block:: bash
 
@@ -189,11 +189,11 @@ check the following examples:
             --target_dir=tracts --target_list=/path/to/your_target_list.txt --spatial --out=predictions.nii.gz \
             --hemisphere=left --model=/path/to/your_trained_model.pth
 
-    This example will create a file ``predictions.nii.gz`` for each subject in ``subjs.txt`` to store the localised structure.
+   This example will create a file ``predictions.nii.gz`` for each subject in ``subjs.txt`` to store the localised structure.
 
 2. If your trained model used the group-average map as a prior feature (on training subjects),
-    and for your test subjects, they have ``atlas_left.nii.gz`` as a prior feature,
-    then you can use the following:
+   and for your test subjects, they have ``atlas_left.nii.gz`` as a prior feature,
+   then you can use the following:
 
     .. code-block:: bash
 
@@ -201,4 +201,4 @@ check the following examples:
             --target_dir=tracts --target_list=/path/to/your_target_list.txt --atlas=atlas_left.nii.gz \
             --out=predictions.nii.gz --hemisphere=left --model=/path/to/your_trained_model.pth
 
-    This example will create a file ``predictions.nii.gz`` for each subject in ``subjs.txt`` to store the localised structure.
+   This example will create a file ``predictions.nii.gz`` for each subject in ``subjs.txt`` to store the localised structure.
