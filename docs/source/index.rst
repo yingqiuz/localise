@@ -31,7 +31,7 @@ How to Get Started
 1. If the toolbox is not installed, following the :ref:`Installation Instructions <installation>`.
 
 2. If you are not sure what data you need and how to prepare them, 
-   check out the :ref:`Prepare Your Data <data_requirements>`.
+   check out the :ref:`Prepare Your Data <prepare>`.
 
 3. If you simply want to localise a target using pre-trained models, 
    check out the :ref:`Predict Mode <predict_mode>`. 
