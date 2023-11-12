@@ -12,7 +12,7 @@ DEFAULT_TARGET_LIST = [...]  # fill this with your default target list
 def load_features(subject, mask_name, target_path=None, data=None, atlas=None, 
                   target_list=None, demean=True,
                   normalise=True, gamma=None, power=None, 
-                  output_fname=None):
+                  output_fname=None, adj=None):
     """
     Loads feature matrices and performs several preprocessing steps.
 
@@ -40,6 +40,9 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
         The power values to use. If not set, defaults to an array [2, 1, 0.5, 0.2].
     output_fname : str, optional
         The output filename to store the feature matrix.
+    adj : Adjacency matrix, optional
+        ## TODO explain this
+        The adjacency matrix to use. If not set, will generate a new one.
 
     Returns
     -------
@@ -58,7 +61,7 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
                                  target_path=target_path, data=data, atlas=atlas, 
                                  target_list=target_list, demean=demean, 
                                  normalise=normalise, gamma=gamma, 
-                                 power=power, output_fname=output_fname) 
+                                 power=power, output_fname=output_fname, adj=adj) 
                    for s in subject]
         return results
 
@@ -76,7 +79,10 @@ def load_features(subject, mask_name, target_path=None, data=None, atlas=None,
     index = np.where(mask > 0)
     
     # generate adjacency matrix
-    inds1, inds2, n = get_adj_sparse_kdt(mask)
+    if adj is None:
+        inds1, inds2, n = get_adj_sparse_kdt(mask)
+    else:
+        inds1, inds2, n = adj
     
     # load data into X
     if data is None:
@@ -166,7 +172,7 @@ def load_labels(subject, mask_name, label_name):
 def load_data(subject, mask_name, label_name, target_path=None, data=None, 
               atlas=None, target_list=None, demean=True,
               normalise=True, gamma=None, power=None, 
-              output_fname=None):
+              output_fname=None, adj=None):
     """
     This function is a wrapper that loads both features and labels for a given subject, 
     and returns them as a tuple. 
@@ -200,6 +206,9 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
         The power values to use. If not set, defaults to an array [2, 1, 0.5, 0.2].
     output_fname : str, optional, Defaults to None.
         The output filename to store the feature matrix.
+    adj: Adjacency matrix, optional
+        # TODO: explain this
+        The adjacency matrix to use. If not set, will generate a new one.
 
     Returns
     -------
@@ -219,14 +228,14 @@ def load_data(subject, mask_name, label_name, target_path=None, data=None,
                              target_path=target_path, data=data, atlas=atlas, 
                              target_list=target_list, demean=demean, 
                              normalise=normalise, gamma=gamma, 
-                             power=power, output_fname=output_fname) 
+                             power=power, output_fname=output_fname, adj=adj) 
                    for s in subject]
         return results
 
     features = load_features(subject=subject, mask_name=mask_name, target_path=target_path, 
                              data=data, atlas=atlas, target_list=target_list, 
                              demean=demean, normalise=normalise, 
-                             gamma=gamma, power=power, output_fname=output_fname)
+                             gamma=gamma, power=power, output_fname=output_fname, adj=adj)
     labels = load_labels(subject=subject, mask_name=mask_name, label_name=label_name)
     return features, labels
 
@@ -276,58 +285,3 @@ class ShuffledDataLoader():
         validation_loader = ShuffledDataLoader(validation_data)
 
         return train_loader, validation_loader
-
-
-class CustomDataset(Dataset):
-    def __init__(self, data, labels):
-        super().__init__()
-        self.data = data
-        self.labels = labels
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, index):
-        return self.data[index], self.labels[index]
-
-
-class LargeCustomDataset(Dataset):
-    def __init__(self, subjects, mask_name, label_name, target_path=None, data=None, 
-                 atlas=None, target_list=DEFAULT_TARGET_LIST, 
-                 demean=True, withgroup=False, normalise=True, gamma=None, power=None, 
-                 save_features=False, output_fname=None):
-        
-        if withgroup and atlas is None:
-            raise ValueError("If withgroup is set to true, you must specify the file that contains the atlas in the individual space.")
-    
-        if data is None and target_path is None:
-            raise ValueError("Please specify either target_path or data.")
-    
-        if save_features and output_fname is None:
-            raise ValueError("Please specify the output filename to store the connectivity feature matrix.")
-    
-        self.subjects = subjects
-        self.mask_name = mask_name
-        self.label_name = label_name
-        self.target_path = target_path
-        self.data = data
-        self.atlas = atlas
-        self.target_list = target_list
-        self.demean = demean
-        self.withgroup = withgroup
-        self.normalise = normalise
-        self.gamma = np.array(gamma).astype(np.float32) if gamma is not None else np.array([0])
-        self.power = np.array(power).astype(np.float32) if power is not None else np.array([2, 1, 0.5, 0.2], dtype=np.float32)
-        self.save_features = save_features
-        self.output_fname = output_fname
-
-    def __len__(self):
-        return len(self.subjects)
-
-    def __getitem__(self, idx):
-        subject = self.subjects[idx]
-        features = load_features(subject, self.mask_name, self.target_path, self.data, self.atlas, 
-                                 self.target_list, self.demean, self.withgroup, self.normalise, 
-                                 self.gamma, self.power, self.save_features, self.output_fname)
-        labels = load_labels(subject, self.mask_name, self.label_name)
-        return features, labels
