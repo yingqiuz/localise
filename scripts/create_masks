@@ -69,7 +69,6 @@ while [ -n "$1" ]; do
   case "$1" in
     -help)
     Usage
-    exit 0
     ;;
     -ref)
       ref="$2"
