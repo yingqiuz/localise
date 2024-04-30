@@ -284,5 +284,5 @@ if [ "`fsl_sub --has_queues`" == "Yes" ]; then
   fsl_sub -N create_masks_scpct -l $out/logs "bash $out/create_masks_scpct_cmds"
 else
   bash "$out/create_masks_cmds"
-  basj "$out/create_masks_scpct_cmds"
+  bash "$out/create_masks_scpct_cmds"
 fi
