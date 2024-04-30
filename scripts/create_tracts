@@ -27,7 +27,7 @@ Usage() {
     echo ""
     echo "-bpx <folder>                                       Path to bedpostx folder"
     echo "-masks <folder>                                     Path to mask folder"
-    echo "-str <structure_name>                               Structure to be localised."
+    echo "-str <structure_name>                               Structure to be localised, e.g., vim, lgn, etc."
     echo "-out <folder>                                       Path to output folder."
     echo ""
     echo ""
@@ -150,9 +150,9 @@ if [ -z "$str" ]; then
 fi
 
 # set the seed for tractography
-if [[ $str == "VIM" ]]; then
+if [[ $str == "vim" ]]; then
   seed=tha.nii.gz
-elif [[ $str == "LGN" ]]; then
+elif [[ $str == "lgn" ]]; then
   seed=lgn_seed.nii.gz
 fi
 
@@ -200,7 +200,7 @@ for hemi in left right; do
   ### run tractography...
   echo $cmd >> $out/../create_tracts_cmds;
   #eval $cmd;
-  if [ $str = "VIM" ]; then  
+  if [ $str = "vim" ]; then  
     ## extra features for VIM
     echo $inputdir/$hemi/scpct_mask{1..15}.nii.gz > $out/$hemi/scpct_targets.txt;
     echo $inputdir/$hemi/cerebellum_target.nii.gz >> $out/$hemi/scpct_targets.txt;
