@@ -101,6 +101,10 @@ while [ -n "$1" ]; do
     inputdir=$2
     shift
     ;;
+    -str)
+    str=$2
+    shift
+    ;;
     -warp)
     ref2diff=$2
     diff2ref=$3
