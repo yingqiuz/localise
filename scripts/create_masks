@@ -65,11 +65,11 @@ queue="short"
 njobs=1
 
 ### parse arguments
-for arg in "$@"
-do
-  case $arg in
+while [ -n "$1" ]; do
+  case "$1" in
     -help)
     Usage
+    exit 0
     ;;
     -ref)
       ref="$2"
@@ -100,11 +100,12 @@ do
       shift
       ;;
     *)
-      echo "Error: Invalid argument: $arg"
+      echo "Error: Invalid argument: $1"
       Usage
       exit 1
     ;;
   esac
+  shift
 done
 
 ### Check if required arguments are provided
