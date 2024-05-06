@@ -5,8 +5,8 @@ from pathlib import Path
 path_to_data = Path(__file__).parent / 'test_data'
 
 from localise.load import load_features, load_data
-from localise.flatten_batch import FlattenedCRFBatchTensor
-from localise.flatten_forward import FlexibleClassifier, MLP
+from localise.batch import FlattenedCRFBatchTensor
+from localise.forward import FlexibleClassifier, MLP
 from localise.train import train_loop
 import torch
 
