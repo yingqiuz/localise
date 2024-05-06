@@ -225,14 +225,25 @@ for hemi in left right; do
     echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
   done
 
-  ### thalamus - although it's recommend to use FSL's MIST
-  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/tha -w $warp -o $out/masks/$hemi/tha --interp=nn" >> $out/create_masks_cmds
-
-  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/vim -w $warp -o $out/masks/$hemi/vim" >> $out/create_masks_cmds
+  case "$str" in
+    vim)
+      ### thalamus - although it's recommend to use FSL's MIST
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/tha -w $warp -o $out/masks/$hemi/tha --interp=nn" >> $out/create_masks_cmds
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/vim -w $warp -o $out/masks/$hemi/vim" >> $out/create_masks_cmds
+      ;;
+    lgn)
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/lgn -w $warp -o $out/masks/$hemi/lgn" >> $out/create_masks_cmds
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/lgn_bin -w $warp -o $out/masks/$hemi/lgn_bin  --interp=nn" >> $out/create_masks_cmds
+      ;;
+    *)
+      echo "$str currently not supported. "
+      exit 1
+      ;;
+  esac
 
   echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/exclusion -w $warp -o $out/masks/$hemi/exclusion --interp=nn" >> $out/create_masks_cmds
 
-  if [ -z "$aparc" ]; then   ### To be removed
+  if [ -z "$aparc" ]; then   ### To be removed? maybe not?
     ### cerebellum - although it's recommend to use freesurfer's segmentation
     ##### MNI_roi/$hemi/cerebellum_target is the contralateral cerebellar target
     echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/cerebellum_target -w $warp -o $out/masks/$hemi/cerebellum_target --interp=nn" >> $out/create_masks_cmds
