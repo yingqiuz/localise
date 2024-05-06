@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Linear
-from localise.flatten_forward import FlexibleClassifier, MLP
+from localise.forward import FlexibleClassifier, MLP
 import logging
 
 

@@ -8,7 +8,7 @@ from pathlib import Path
 path_to_data = Path(__file__).parent / 'test_data'
 
 from localise.load import load_features, load_labels, load_data, ShuffledDataLoader
-from localise.flatten_batch import FlattenedCRFBatchTensor
+from localise.batch import FlattenedCRFBatchTensor
 from torch.utils.data import DataLoader
 
 
