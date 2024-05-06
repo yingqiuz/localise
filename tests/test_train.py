@@ -7,7 +7,7 @@ path_to_data = Path(__file__).parent / 'test_data'
 import torch
 from localise.load import load_data, ShuffledDataLoader
 from localise.train import train_loop, val_loop, train, train_with_val, train_without_val
-from localise.flatten_forward import FlexibleClassifier, MLP
+from localise.forward import FlexibleClassifier, MLP
 
 subjects=['100610', '100408', '100307']
 

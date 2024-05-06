@@ -2,7 +2,7 @@ import nibabel as nib
 import numpy as np
 import os, random
 from joblib import dump, load
-from .flatten_batch import get_adj_sparse_kdt, FlattenedCRFBatchTensor, Adjacency
+from .batch import get_adj_sparse_kdt, FlattenedCRFBatchTensor, Adjacency
 import torch
 from torch.utils.data import Dataset
 
