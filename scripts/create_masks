@@ -26,7 +26,6 @@ Usage() {
     exit 1
 }
 
-
 [ -z "$1" ] && Usage
 
 if [ -z "$FSLDIR" ]; then
