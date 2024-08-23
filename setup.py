@@ -21,7 +21,7 @@ DESCRIPTION = 'A Python package for localisation'
 VERSION = '0.1.0'  # Consider using setuptools_scm for automatic versioning
 AUTHOR = 'Ying-Qiu Zheng'
 AUTHOR_EMAIL = 'ying-qiu.zheng@ndcn.ox.ac.uk'
-URL = 'https://git.fmrib.ox.ac.uk/yqzheng1/python-localise'
+URL = 'https://github.com/yingqiuz/localise'
 LICENSE = 'MIT'
 PYTHON_REQUIRES = '>=3.7'
 
