@@ -25,15 +25,18 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-    # Move your dependencies here from requirements.txt
-    # For example:
-    # "numpy>=1.18.0",
-    # "scipy>=1.4.0",
+    "numpy",
+    "torch",
+    "joblib",
+    "nibabel",
+    "scipy",
+    "pytest",
+    "argparse",
 ]
 
 [project.urls]
-Homepage = "https://git.fmrib.ox.ac.uk/yqzheng1/python-localise"
-"Bug Tracker" = "https://git.fmrib.ox.ac.uk/yqzheng1/python-localise/issues"
+Homepage = "https://github.com/yingqiuz/localise"
+"Bug Tracker" = "https://github.com/yingqiuz/localise/issues"
 
 [project.scripts]
 localise = "localise.cli:main"
