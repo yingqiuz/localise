@@ -134,9 +134,10 @@ done
 refpath=$(get_abs_file_path "$ref")
 
 ### create output directory
-mkdir -p "$out/masks/left" "$out/masks/right"
+mkdir -p "$out/masks/left" "$out/masks/right" "$out/commands_for_${str}"
 
 echo "Creating masks for localising $str in $ref space..."
+output_cmds_fname="$out/commands_for_${str}/create_masks_cmds"
 
 ### create masks
 if [ ! -z "$aparc" ]; then
@@ -157,59 +158,59 @@ if [ ! -z "$aparc" ]; then
     exit 1
   fi
   #### cerebellum
-  echo "$FSLDIR/bin/fslmaths $aparc -thr 6 -uthr 8 -bin $out/masks/left/cerebellum" > "$out/create_masks_cmds"
-  echo "$FSLDIR/bin/fslmaths $aparc -thr 45 -uthr 47 -bin $out/masks/right/cerebellum" >> "$out/create_masks_cmds"
-  echo "$FSLDIR/bin/fslmaths $aparc -thr 7 -uthr 7 -bin $out/masks/right/cerebellum_target" >> "$out/create_masks_cmds"
-  echo "$FSLDIR/bin/fslmaths $aparc -thr 46 -uthr 46 -bin $out/masks/left/cerebellum_target" >> "$out/create_masks_cmds"
-  echo "$FSLDIR/bin/fslmaths $aparc -thr 24 -uthr 24 -bin $out/masks/csf" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 6 -uthr 8 -bin $out/masks/left/cerebellum" > "$output_cmds_fname"
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 45 -uthr 47 -bin $out/masks/right/cerebellum" >> "$output_cmds_fname"
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 7 -uthr 7 -bin $out/masks/right/cerebellum_target" >> "$output_cmds_fname"
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 46 -uthr 46 -bin $out/masks/left/cerebellum_target" >> "$output_cmds_fname"
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 24 -uthr 24 -bin $out/masks/csf" >> "$output_cmds_fname"
 
   ### left hemisphere cortical masks (from 11101 to 11175)
   for k in {11101..11175}; do
     kk=$((k - 11100))
-    echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/masks/left/$kk" >> $out/create_masks_cmds
+    echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/masks/left/$kk" >> "$output_cmds_fname"
   done
   #echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/cortex" >> $out/create_masks_cmds
   ### right hemisphere cortical masks (from 12101 to 12175)
   for k in {12101..12175}; do
     kk=$((k - 12100))
-    echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/masks/right/$kk" >> $out/create_masks_cmds
+    echo "$FSLDIR/bin/fslmaths $aparc -thr $k -uthr $k -bin $out/masks/right/$kk" >> "$output_cmds_fname"
   done
-  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/masks/cortex" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/fslmaths $aparc -thr 11100 -uthr 12175 -bin $out/masks/cortex" >> "$output_cmds_fname"
 fi
 
 ### warp standard masks into ref space
 for hemi in left right; do
   ### create white matter masks - SCPCT tract
   for tract in scpct_mask{1..15}; do
-    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> "$output_cmds_fname"
   done
   ### STR
   for tract in str_mask{1..10}; do
-    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> "$output_cmds_fname"
   done
   ### ATR
   for tract in atr_mask{1..8}; do
-    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> "$output_cmds_fname"
   done
   ### AR
   for tract in ar_mask{1..8}; do
-    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> "$output_cmds_fname"
   done
   ### OR
   for tract in or_mask{1..10}; do
-    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> "$output_cmds_fname"
   done
   ### fornix
   for tract in fx_mask{1..10}; do
-    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> "$output_cmds_fname"
   done
   ### M1
   for tract in to_precentral_mask{1..12}; do
-    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> "$output_cmds_fname"
   done
   ### S1
   for tract in to_postcentral_mask{1..12}; do
-    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> $out/create_masks_cmds
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/$tract -w $warp -o $out/masks/$hemi/$tract --interp=nn" >> "$output_cmds_fname"
   done
 
   ### TODO: more masks to be added
@@ -218,12 +219,12 @@ for hemi in left right; do
   case "$str" in
     vim)
       ### thalamus - although it's recommend to use FSL's MIST
-      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/tha -w $warp -o $out/masks/$hemi/seed --interp=nn" >> $out/create_masks_cmds
-      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/vim -w $warp -o $out/masks/$hemi/vim" >> $out/create_masks_cmds
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/tha -w $warp -o $out/masks/$hemi/seed --interp=nn" >> "$output_cmds_fname"
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/vim -w $warp -o $out/masks/$hemi/vim" >> "$output_cmds_fname"
       ;;
     lgn)
-      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/lgn -w $warp -o $out/masks/$hemi/lgn" >> $out/create_masks_cmds
-      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/lgn_bin -w $warp -o $out/masks/$hemi/seed  --interp=nn" >> $out/create_masks_cmds
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/lgn -w $warp -o $out/masks/$hemi/lgn" >> "$output_cmds_fname"
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/lgn_bin -w $warp -o $out/masks/$hemi/seed  --interp=nn" >> "$output_cmds_fname"
       ;;
     *)
       echo "$str currently not supported. "
@@ -231,7 +232,7 @@ for hemi in left right; do
       ;;
   esac
 
-  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/exclusion -w $warp -o $out/masks/$hemi/exclusion --interp=nn" >> $out/create_masks_cmds
+  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/exclusion -w $warp -o $out/masks/$hemi/exclusion --interp=nn" >> "$output_cmds_fnames"
 
   # if [ -z "$aparc" ]; then   ### To be removed? maybe not?
   #   ### cerebellum - although it's recommend to use freesurfer's segmentation
@@ -250,35 +251,35 @@ done
 # SCPCT-related ROIs
 if [[ "$str" == "vim" ]]; then
 
-  echo "echo Create SCPCT-related ROIs..." > $out/create_masks_scpct_cmds
+  echo "echo Create SCPCT-related ROIs..." > "$out/commands_for_${str}/create_masks_scpct_cmds"
   ### if brain mask not provided, use standard
   if [ -z "$brainmask" ]; then
     #echo "echo brainmask not provided. use standard brain mask MNI152_T1_1mm_brain_mask instead..." >> $out/create_masks_scpct_cmds
-    echo "$FSLDIR/bin/applywarp -r $ref -i $FSLDIR/data/standard/MNI152_T1_1mm_brain_mask -w $warp -o $out/masks/brain_mask --interp=nn" >> $out/create_masks_scpct_cmds
+    echo "$FSLDIR/bin/applywarp -r $ref -i $FSLDIR/data/standard/MNI152_T1_1mm_brain_mask -w $warp -o $out/masks/brain_mask --interp=nn" >> "$out/commands_for_${str}/create_masks_scpct_cmds"
     brainmask="$out/masks/brain_mask"
   fi
 
 
   for hemi in left right; do
     ### SCPCT
-    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/SCPCT -w $warp -o $out/masks/$hemi/SCPCT" >> $out/create_masks_scpct_cmds
-    echo "$FSLDIR/bin/fslmaths $out/masks/$hemi/SCPCT -thr 0.0001 -bin $out/masks/$hemi/SCPCT_bin" >> $out/create_masks_scpct_cmds
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/SCPCT -w $warp -o $out/masks/$hemi/SCPCT" >> "$out/commands_for_${str}/create_masks_scpct_cmds"
+    echo "$FSLDIR/bin/fslmaths $out/masks/$hemi/SCPCT -thr 0.0001 -bin $out/masks/$hemi/SCPCT_bin" >> "$out/commands_for_${str}/create_masks_scpct_cmds"
     ### if brain mask not provided, use standard
     #if [ -z "$brainmask" ]; then
       #echo "$FSLDIR/bin/fslmaths $out/brain_mask -rem $out/$hemi/SCPCT_bin -bin -rem $out/$hemi/tha -bin $out/$hemi/stop_for_scpct" >> $out/create_masks_scpct_cmds
     #else
-    echo "$FSLDIR/bin/fslmaths $brainmask -rem $out/masks/$hemi/SCPCT_bin -bin -rem $out/masks/$hemi/tha -bin $out/masks/$hemi/stop_for_scpct" >> $out/create_masks_scpct_cmds
+    echo "$FSLDIR/bin/fslmaths $brainmask -rem $out/masks/$hemi/SCPCT_bin -bin -rem $out/masks/$hemi/tha -bin $out/masks/$hemi/stop_for_scpct" >> "$out/commands_for_${str}/create_masks_scpct_cmds"
     #fi
   done
 fi
 
 queue=`fsl_sub --has_queues`
 if [[ "$queue" == "Yes" ]]; then
-  jobid=`fsl_sub -N create_masks -n -l $out/logs -t "$out/create_masks_cmds"`
+  jobid=`fsl_sub -N create_masks -n -l $out/logs -t "$out/commands_for_${str}/create_masks_cmds"`
   if [[ "$str" == vim ]]; then
-    fsl_sub -N create_masks_scpct -n -l $out/logs -j $jobid "bash $out/create_masks_scpct_cmds"
+    fsl_sub -N create_masks_scpct -n -l $out/logs -j $jobid "bash $out/commands_for_${str}/create_masks_scpct_cmds"
   fi
 else
-  cat "$out/create_masks_cmds"
-  cat "$out/create_masks_scpct_cmds"
+  bash "$out/commands_for_${str}/create_masks_cmds"
+  bash "$out/commands_for_${str}/create_masks_scpct_cmds"
 fi
