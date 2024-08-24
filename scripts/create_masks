@@ -232,7 +232,7 @@ for hemi in left right; do
       ;;
   esac
 
-  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/exclusion -w $warp -o $out/masks/$hemi/exclusion --interp=nn" >> "$output_cmds_fnames"
+  echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/exclusion -w $warp -o $out/masks/$hemi/exclusion --interp=nn" >> "$output_cmds_fname"
 
   # if [ -z "$aparc" ]; then   ### To be removed? maybe not?
   #   ### cerebellum - although it's recommend to use freesurfer's segmentation
