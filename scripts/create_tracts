@@ -167,7 +167,6 @@ done
 refpath=$(get_abs_file_path "$inputdir")
 
 # create output dir
-out="$out/$str/tracts"
 mkdir -p "$out/$str/tracts/left" "$out/$str/tracts/right" "$out/$str/logs"
 
 case "$str" in
