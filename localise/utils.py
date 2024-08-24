@@ -1,3 +1,4 @@
+import os, sys
 import subprocess
 import numpy as np
 import nibabel as nib
@@ -6,6 +7,20 @@ from pathlib import Path
 
 PKG_PATH = Path(__file__).parent.parent
 
+def get_resources_path():
+    """
+    Get the absolute path to the resources directory.
+    This function works whether the package is installed or in development mode.
+    """
+    if getattr(sys, 'frozen', False):
+        # The application is frozen (packaged)
+        return os.path.join(sys._MEIPASS, 'resources')
+    else:
+        # The application is not frozen
+        # Get the directory of the current file (utils.py)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Go up one level to the package root, then into 'resources'
+        return os.path.abspath(os.path.join(current_dir, '..', 'resources'))
 
 def save_nifti(data, mask_file, output_file):
     """

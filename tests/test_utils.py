@@ -1,6 +1,7 @@
-import os
+import os, sys
 import numpy as np
 import subprocess
+from localise.utils import get_resources_path
 from localise.utils import save_nifti, save_nifti_4D
 from localise.utils import run_command
 from pathlib import Path
@@ -9,6 +10,25 @@ from unittest.mock import patch
 
 
 path_to_data = Path(__file__).parent / 'test_data'
+
+def test_get_resources_path():
+    # Test for non-frozen application
+    with patch.object(sys, 'frozen', False, create=True):
+        with patch('os.path.dirname') as mock_dirname:
+            mock_dirname.return_value = '/fake/path/localise'
+            result = get_resources_path()
+            assert result == '/fake/path/resources'
+
+    # Test for frozen application
+    with patch.object(sys, 'frozen', True, create=True):
+        with patch.object(sys, '_MEIPASS', '/fake/frozen/path', create=True):
+            result = get_resources_path()
+            assert result == '/fake/frozen/path/resources'
+
+    # Test that the returned path exists (assuming you're running tests from the project root)
+    actual_path = get_resources_path()
+    assert os.path.exists(actual_path), f"The path {actual_path} does not exist"
+    assert os.path.isdir(actual_path), f"The path {actual_path} is not a directory"
 
 def test_save_nifti():
     subject = '100610'
