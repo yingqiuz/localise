@@ -136,6 +136,8 @@ refpath=$(get_abs_file_path "$ref")
 ### create output directory
 mkdir -p "$out/masks/left" "$out/masks/right"
 
+echo "Creating masks for localising $str in $ref space..."
+
 ### create masks
 if [ ! -z "$aparc" ]; then
   aparc_basename=$(basename "$aparc")
