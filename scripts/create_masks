@@ -134,12 +134,13 @@ done
 refpath=$(get_abs_file_path "$ref")
 
 ### create output directory
-mkdir -p "$out/masks/left" "$out/masks/right" "$out/commands_for_${str}"
+mkdir -p "$out/masks/left" "$out/masks/right" "$out/$str/logs"
 
 echo "Creating masks for localising $str in $ref space..."
-output_cmds_fname="$out/commands_for_${str}/create_masks_cmds"
+output_cmds_fname="$out/${str}/create_masks_cmds"
 
 ### create masks
+### TODO: check if the masks already exist
 if [ ! -z "$aparc" ]; then
   aparc_basename=$(basename "$aparc")
   if [[ "$aparc" == *.mgz ]]; then  # TODO: maybe remove this
@@ -219,15 +220,15 @@ for hemi in left right; do
   case "$str" in
     vim)
       ### thalamus - although it's recommend to use FSL's MIST
-      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/tha -w $warp -o $out/masks/$hemi/seed --interp=nn" >> "$output_cmds_fname"
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/tha -w $warp -o $out/masks/$hemi/tha --interp=nn" >> "$output_cmds_fname"
       echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/vim -w $warp -o $out/masks/$hemi/vim" >> "$output_cmds_fname"
       ;;
     lgn)
       echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/lgn -w $warp -o $out/masks/$hemi/lgn" >> "$output_cmds_fname"
-      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/lgn_bin -w $warp -o $out/masks/$hemi/seed  --interp=nn" >> "$output_cmds_fname"
+      echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/lgn_bin -w $warp -o $out/masks/$hemi/lgn_bin  --interp=nn" >> "$output_cmds_fname"
       ;;
     *)
-      echo "$str currently not supported. "
+      echo "$str currently not supported. " >&2
       exit 1
       ;;
   esac
@@ -251,35 +252,35 @@ done
 # SCPCT-related ROIs
 if [[ "$str" == "vim" ]]; then
 
-  echo "echo Create SCPCT-related ROIs..." > "$out/commands_for_${str}/create_masks_scpct_cmds"
+  echo "echo Create SCPCT-related ROIs..." > "$out/${str}/create_masks_scpct_cmds"
   ### if brain mask not provided, use standard
   if [ -z "$brainmask" ]; then
     #echo "echo brainmask not provided. use standard brain mask MNI152_T1_1mm_brain_mask instead..." >> $out/create_masks_scpct_cmds
-    echo "$FSLDIR/bin/applywarp -r $ref -i $FSLDIR/data/standard/MNI152_T1_1mm_brain_mask -w $warp -o $out/masks/brain_mask --interp=nn" >> "$out/commands_for_${str}/create_masks_scpct_cmds"
+    echo "$FSLDIR/bin/applywarp -r $ref -i $FSLDIR/data/standard/MNI152_T1_1mm_brain_mask -w $warp -o $out/masks/brain_mask --interp=nn" >> "$out/${str}/create_masks_scpct_cmds"
     brainmask="$out/masks/brain_mask"
   fi
 
 
   for hemi in left right; do
     ### SCPCT
-    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/SCPCT -w $warp -o $out/masks/$hemi/SCPCT" >> "$out/commands_for_${str}/create_masks_scpct_cmds"
-    echo "$FSLDIR/bin/fslmaths $out/masks/$hemi/SCPCT -thr 0.0001 -bin $out/masks/$hemi/SCPCT_bin" >> "$out/commands_for_${str}/create_masks_scpct_cmds"
+    echo "$FSLDIR/bin/applywarp -r $ref -i $RESOURCES_DIR/MNI_roi/$hemi/SCPCT -w $warp -o $out/masks/$hemi/SCPCT" >> "$out/${str}/create_masks_scpct_cmds"
+    echo "$FSLDIR/bin/fslmaths $out/masks/$hemi/SCPCT -thr 0.0001 -bin $out/masks/$hemi/SCPCT_bin" >> "$out/${str}/create_masks_scpct_cmds"
     ### if brain mask not provided, use standard
     #if [ -z "$brainmask" ]; then
       #echo "$FSLDIR/bin/fslmaths $out/brain_mask -rem $out/$hemi/SCPCT_bin -bin -rem $out/$hemi/tha -bin $out/$hemi/stop_for_scpct" >> $out/create_masks_scpct_cmds
     #else
-    echo "$FSLDIR/bin/fslmaths $brainmask -rem $out/masks/$hemi/SCPCT_bin -bin -rem $out/masks/$hemi/tha -bin $out/masks/$hemi/stop_for_scpct" >> "$out/commands_for_${str}/create_masks_scpct_cmds"
+    echo "$FSLDIR/bin/fslmaths $brainmask -rem $out/masks/$hemi/SCPCT_bin -bin -rem $out/masks/$hemi/tha -bin $out/masks/$hemi/stop_for_scpct" >> "$out/${str}/create_masks_scpct_cmds"
     #fi
   done
 fi
 
 queue=`fsl_sub --has_queues`
 if [[ "$queue" == "Yes" ]]; then
-  jobid=`fsl_sub -N create_masks -n -l $out/logs -t "$out/commands_for_${str}/create_masks_cmds"`
+  jobid=`fsl_sub -N "create_masks_for_${str}" -n -l $out/$str/logs -t "$out/${str}/create_masks_cmds"`
   if [[ "$str" == vim ]]; then
-    fsl_sub -N create_masks_scpct -n -l $out/logs -j $jobid "bash $out/commands_for_${str}/create_masks_scpct_cmds"
+    fsl_sub -N create_masks_scpct -n -l $out/$str/logs -j $jobid "bash $out/${str}/create_masks_scpct_cmds"
   fi
 else
-  bash "$out/commands_for_${str}/create_masks_cmds"
-  bash "$out/commands_for_${str}/create_masks_scpct_cmds"
+  bash "$out/${str}/create_masks_cmds"
+  bash "$out/${str}/create_masks_scpct_cmds"
 fi

@@ -43,6 +43,36 @@ Usage() {
     exit 1
 }
 
+Usage() {
+    cat << EOF
+
+Usage:
+    create_tracts -bpx <bedpostX_dir> -out <output_dir> -masks <masks_dir> -str <str_name>
+    create_tracts -bpx <bedpostX_dir> -out <output_dir> -masks <masks_dir> -str <str_name> -warp <ref2diff> <diff2ref> -ref <refimage> -gpu
+    create_tracts -help
+
+Example:
+    create_tracts -masks subj001/masks -bpx subj001/dMRI.bedpostX -seed thalamus.nii.gz -out subj001
+
+Creates tracts for the specified seed, using fiber samples estimated via BedpostX
+
+Compulsory arguments:
+    -bpx <folder>                   Path to bedpostx folder
+    -masks <folder>                 Path to mask folder
+    -str <structure_name>           Structure to be localised, e.g., vim, lgn, etc.
+    -out <folder>                   Path to output folder
+
+Optional arguments:
+    -warp <ref2diff> <diff2ref>     (Optional) Transformation matrix/field between the reference space (i.e., the space of the anatomical masks) and the diffusion space.
+                                    Necessary if the reference space is not the diffusion space.
+    -ref <path>                     (Optional) Path to reference image, usually in the individual T1 native space.
+                                    Necessary if the reference space is not the diffusion space.
+    -ptx_opts <options.txt>         (Optional) Pass extra probtrackx2 options as a text file to override defaults, e.g. --steplength=0.2 --distthresh=10
+    -gpu                            (Optional) Use the GPU version of probtractx2.
+
+EOF
+    exit 1
+}
 
 [ -z "$1" ] && Usage
 
@@ -81,10 +111,6 @@ while [ -n "$1" ]; do
     -gpu)
     prog="probtrackx2_gpu"
     ;;
-    -str)
-    str="$2"
-    shift
-    ;;
     -ref)
     ref="$2"
     shift
@@ -108,57 +134,54 @@ while [ -n "$1" ]; do
     -warp)
     ref2diff="$2"
     diff2ref="$3"
-    shift;
-    shift;;
+    shift 2;
+    ;;
     -ptx_opts)
-    ptx_opts=`cat "$2"`
+    ptx_opts=$(cat "$2")
     shift
     ;;
     *)
-    echo "Unknown option: $1"
+    echo "Unknown option: $1" >&2
     exit 1
     ;;
   esac
   shift
 done
 
-### Check if required arguments are provided
-if [ -z "$inputdir" ]; then
-  echo "Error: Missing required argument -masks, the folder that contains anatomical masks."
-  exit 1
-elif [ ! -d $inputdir ]; then
-  echo "$inputdir does not exist. Please double check the path."
-  exit 1
-else
-  refpath=$(get_abs_file_path "$inputdir")
-fi
+# Check for required arguments
 
-if [ -z "$bpx" ]; then
-  echo "Error: Missing required argument -bpx, the bedpostx folder. "
-  exit 1
-fi
-
-if [ -z "$out" ]; then
-  echo "Error: Missing required argument -out. Please specify the output folder. "
-  exit 1
-else
-  out="$out/$str/tracts"
-  if [ ! -d "$out" ]; then
-    mkdir -p "$out"
+for file in inputdir bpx str out; do
+  if [ -z "${!file}" ]; then
+    echo "Error: Missing required argument -$file. Please specify the $file." >&2
+    exit 1
   fi
-fi
+done
 
-if [ -z "$str" ]; then
-  echo "Error: Missing required argument -str. Please specify the structure to be localised."
-  exit 1
-fi
+for file in inputdir bpx; do
+  if [ ! -d "${!file}" ]; then
+    echo "${!file} does not exist. Please double check the path." >&2
+    exit 1
+  fi
+done
 
-# set the seed for tractography
-if [[ $str == "vim" ]]; then
+refpath=$(get_abs_file_path "$inputdir")
+
+# create output dir
+out="$out/$str/tracts"
+mkdir -p "$out/$str/tracts/left" "$out/$str/tracts/right" "$out/$str/logs"
+
+case "$str" in
+  vim)
   seed="tha.nii.gz"
-elif [[ $str == "lgn" ]]; then
+  ;;
+  lgn)
   seed="lgn_bin.nii.gz"
-fi
+  ;;
+  *)
+  echo "Error: Unknown structure $str. Please specify a valid structure." >&2
+  exit 1
+  ;;
+esac
 
 if [ -z "$brainmask" ]; then
   brainmask="$bpx/nodif_brain_mask"
@@ -168,28 +191,25 @@ if [ -z "$brainmask" ]; then
   fi
 fi
 
-if [ -f "$out/../create_tracts_cmds" ]; then
-  rm "$out/../create_tracts_cmds"
-fi
+echo "## Create commands for tractography" > "$out/$str/create_tracts_cmds";
+echo " " >> "$out/$str/create_tracts_cmds";
+
 # for left and right hemispheres
 for hemi in left right; do
-  if [ ! -d "$out/$hemi" ]; then
-    mkdir "$out/$hemi"
-  fi
   ## create a list containing the anatomical masks
-  echo "$inputdir/$hemi/ar_mask{1..8}.nii.gz" > "$out/$hemi/targets.txt";
-  echo "$inputdir/$hemi/or_mask{1..10}.nii.gz" >> "$out/$hemi/targets.txt";
-  echo "$inputdir/$hemi/str_mask{1..10}.nii.gz" >> "$out/$hemi/targets.txt";
-  echo "$inputdir/$hemi/atr_mask{1..8}.nii.gz" >> "$out/$hemi/targets.txt";
-  echo "$inputdir/$hemi/fx_mask{1..10}.nii.gz" >> "$out/$hemi/targets.txt";
-  echo "$inputdir/$hemi/to_precentral_mask{1..12}.nii.gz"  >> "$out/$hemi/targets.txt";
-  echo "$inputdir/$hemi/to_postcentral_mask{1..12}.nii.gz"  >> "$out/$hemi/targets.txt";
-  echo "$inputdir/$hemi/{1..75}.nii.gz" >> "$out/$hemi/targets.txt";
+  echo "$inputdir/$hemi/ar_mask{1..8}.nii.gz" > "$out/$str/tracts/$hemi/targets.txt";
+  echo "$inputdir/$hemi/or_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt";
+  echo "$inputdir/$hemi/str_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt";
+  echo "$inputdir/$hemi/atr_mask{1..8}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt";
+  echo "$inputdir/$hemi/fx_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt";
+  echo "$inputdir/$hemi/to_precentral_mask{1..12}.nii.gz"  >> "$out/$str/tracts/$hemi/targets.txt";
+  echo "$inputdir/$hemi/to_postcentral_mask{1..12}.nii.gz"  >> "$out/$str/tracts/$hemi/targets.txt";
+  echo "$inputdir/$hemi/{1..75}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt";
   # create a list containing termination masks
-  echo "$inputdir/cortex.nii.gz" > "$out/$hemi/stops.txt"
-  echo "$inputdir/csf.nii.gz" >> "$out/$hemi/stops.txt"
+  echo "$inputdir/cortex.nii.gz" > "$out/$str/tracts/$hemi/stops.txt"
+  echo "$inputdir/csf.nii.gz" >> "$out/$str/tracts/$hemi/stops.txt"
 
-  opts="-x $inputdir/$hemi/$seed -s $bpx/merged -m $brainmask --dir=$out/$hemi --forcedir $ptx_opts"
+  opts="-x $inputdir/$hemi/$seed -s $bpx/merged -m $brainmask --dir=$out/$str/tracts/$hemi --forcedir $ptx_opts"
 
   if [ ! -z "$ref2diff" ]; then
     opts="$opts --xfm=$ref2diff --invxfm=$diff2ref"
@@ -201,37 +221,33 @@ for hemi in left right; do
   fi
 
   cmd="$FSLDIR/bin/$prog $opts"
-  cmd="$cmd --targetmasks=$out/$hemi/targets.txt"
-  cmd="$cmd --avoid=$inputdir/$hemi/exclusion --stop=$out/$hemi/stops.txt"
+  cmd="$cmd --targetmasks=$out/$str/tracts/$hemi/targets.txt"
+  cmd="$cmd --avoid=$inputdir/$hemi/exclusion --stop=$out/$str/tracts/$hemi/stops.txt"
 
   ### run tractography...
-  echo $cmd >> $out/../create_tracts_cmds;
+  echo $cmd >> "$out/$str/create_tracts_cmds";
   #eval $cmd;
   if [[ "$str" == "vim" ]]; then  
     ## extra features for VIM
-    echo $inputdir/$hemi/scpct_mask{1..15}.nii.gz > $out/$hemi/scpct_targets.txt;
-    echo $inputdir/$hemi/cerebellum_target.nii.gz >> $out/$hemi/scpct_targets.txt;
+    echo $inputdir/$hemi/scpct_mask{1..15}.nii.gz > $out/$str/tracts/$hemi/scpct_targets.txt;
+    echo $inputdir/$hemi/cerebellum_target.nii.gz >> $out/$str/tracts/$hemi/scpct_targets.txt;
     cmd="$FSLDIR/bin/$prog $opts"
-    cmd="$cmd --targetmasks=$out/$hemi/scpct_targets.txt"
+    cmd="$cmd --targetmasks=$out/$str/tracts/$hemi/scpct_targets.txt"
     cmd="$cmd --avoid=$inputdir/$hemi/exclusion --stop=$inputdir/$hemi/stop_for_scpct"
-    echo $cmd >> $out/../create_tracts_cmds;
+    echo $cmd >> $out/$str/create_tracts_cmds;
   elif [[ "$str" == "lgn" ]]
     echo ""; # TODO implement additional tractography protocols for LGN
   fi
   #eval $cmd;
 done
 
-if [ ! -d "$out/../logs" ]; then
-  mkdir "$out/../logs"
-fi;
-
 queue_status=`fsl_sub --has_queues`
 if [[ "$queue_status" == "Yes" ]]; then
   if $gpu; then
-    fsl_sub -T 300 -R 30 -n --coprocessor=cuda  -N create_tracts -l "$out/../logs" -t "$out/create_tracts_cmds"
+    fsl_sub -T 300 -R 30 -n --coprocessor=cuda  -N "create_tracts_for_${str}" -l "$out/$str/logs" -t "$out/$str/create_tracts_cmds"
   else
-    fsl_sub -T 2160 -R 30 -n -N create_tracts -l "$out/../logs" -t "$out/../create_tracts_cmds"
+    fsl_sub -T 2160 -R 30 -n -N "create_tracts_for_${str}" -l "$out/$str/logs" -t "$out/$str/create_tracts_cmds"
   fi
 else
-  bash "$out/../create_tracts_cmds"
+  bash "$out/$str/create_tracts_cmds"
 fi
