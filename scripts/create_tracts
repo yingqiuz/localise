@@ -197,23 +197,23 @@ echo " " >> "$out/$str/create_tracts_cmds";
 # for left and right hemispheres
 for hemi in left right; do
   ## create a list containing the anatomical masks
-  echo "$inputdir/$hemi/ar_mask{1..8}.nii.gz" > "$out/$str/tracts/$hemi/targets.txt";
-  echo "$inputdir/$hemi/or_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt";
-  echo "$inputdir/$hemi/str_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt";
-  echo "$inputdir/$hemi/atr_mask{1..8}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt";
-  echo "$inputdir/$hemi/fx_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt";
-  echo "$inputdir/$hemi/to_precentral_mask{1..12}.nii.gz"  >> "$out/$str/tracts/$hemi/targets.txt";
-  echo "$inputdir/$hemi/to_postcentral_mask{1..12}.nii.gz"  >> "$out/$str/tracts/$hemi/targets.txt";
-  echo "$inputdir/$hemi/{1..75}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt";
+  echo "$inputdir/$hemi/ar_mask{1..8}.nii.gz" > "$out/$str/tracts/$hemi/targets.txt"
+  echo "$inputdir/$hemi/or_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
+  echo "$inputdir/$hemi/str_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
+  echo "$inputdir/$hemi/atr_mask{1..8}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
+  echo "$inputdir/$hemi/fx_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
+  echo "$inputdir/$hemi/to_precentral_mask{1..12}.nii.gz"  >> "$out/$str/tracts/$hemi/targets.txt"
+  echo "$inputdir/$hemi/to_postcentral_mask{1..12}.nii.gz"  >> "$out/$str/tracts/$hemi/targets.txt"
+  echo "$inputdir/$hemi/{1..75}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
   # create a list containing termination masks
   echo "$inputdir/cortex.nii.gz" > "$out/$str/tracts/$hemi/stops.txt"
   echo "$inputdir/csf.nii.gz" >> "$out/$str/tracts/$hemi/stops.txt"
 
   opts="-x $inputdir/$hemi/$seed -s $bpx/merged -m $brainmask --dir=$out/$str/tracts/$hemi --forcedir $ptx_opts"
 
-  if [ ! -z "$ref2diff" ]; then
+  if [ -n "$ref2diff" ]; then
     opts="$opts --xfm=$ref2diff --invxfm=$diff2ref"
-    if [ ! -z "$ref" ]; then
+    if [ -n "$ref" ]; then
       opts="$opts --seedref=$ref"
     else
       opts="$opts --seedref=$inputdir/$hemi/$seed"
@@ -225,18 +225,18 @@ for hemi in left right; do
   cmd="$cmd --avoid=$inputdir/$hemi/exclusion --stop=$out/$str/tracts/$hemi/stops.txt"
 
   ### run tractography...
-  echo $cmd >> "$out/$str/create_tracts_cmds";
+  echo $cmd >> "$out/$str/create_tracts_cmds"
   #eval $cmd;
   if [[ "$str" == "vim" ]]; then  
     ## extra features for VIM
-    echo $inputdir/$hemi/scpct_mask{1..15}.nii.gz > $out/$str/tracts/$hemi/scpct_targets.txt;
-    echo $inputdir/$hemi/cerebellum_target.nii.gz >> $out/$str/tracts/$hemi/scpct_targets.txt;
+    echo $inputdir/$hemi/scpct_mask{1..15}.nii.gz > $out/$str/tracts/$hemi/scpct_targets.txt
+    echo $inputdir/$hemi/cerebellum_target.nii.gz >> $out/$str/tracts/$hemi/scpct_targets.txt
     cmd="$FSLDIR/bin/$prog $opts"
     cmd="$cmd --targetmasks=$out/$str/tracts/$hemi/scpct_targets.txt"
     cmd="$cmd --avoid=$inputdir/$hemi/exclusion --stop=$inputdir/$hemi/stop_for_scpct"
-    echo $cmd >> $out/$str/create_tracts_cmds;
-  elif [[ "$str" == "lgn" ]]
-    echo ""; # TODO implement additional tractography protocols for LGN
+    echo "$cmd" >> "$out/$str/create_tracts_cmds"
+  elif [[ "$str" == "lgn" ]]; then
+    echo "#TODO: implement additional tractography protocols for LGN"
   fi
   #eval $cmd;
 done
