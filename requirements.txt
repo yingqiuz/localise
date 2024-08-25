@@ -5,3 +5,4 @@ nibabel
 scipy
 pytest
 argparse
+fslpy
