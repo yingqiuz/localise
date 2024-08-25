@@ -204,7 +204,7 @@ for hemi in left right; do
   echo "$inputdir/cortex.nii.gz" > "$out/$str/tracts/$hemi/stops.txt"
   echo "$inputdir/csf.nii.gz" >> "$out/$str/tracts/$hemi/stops.txt"
 
-  opts="-x $inputdir/$hemi/$seed -s $bpx/merged -m $brainmask --dir=$out/$str/tracts/$hemi --forcedir $ptx_opts"
+  opts="-x $inputdir/$hemi/$seed -s $bpx/merged -m $brainmask --dir=$out/$str/tracts/$hemi --forcedir --os2t $ptx_opts"
 
   if [ -n "$ref2diff" ]; then
     opts="$opts --xfm=$ref2diff --invxfm=$diff2ref"
