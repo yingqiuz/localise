@@ -196,14 +196,10 @@ echo " " >> "$out/$str/create_tracts_cmds";
 # for left and right hemispheres
 for hemi in left right; do
   ## create a list containing the anatomical masks
-  echo "$inputdir/$hemi/ar_mask{1..8}.nii.gz" > "$out/$str/tracts/$hemi/targets.txt"
-  echo "$inputdir/$hemi/or_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
-  echo "$inputdir/$hemi/str_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
-  echo "$inputdir/$hemi/atr_mask{1..8}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
-  echo "$inputdir/$hemi/fx_mask{1..10}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
-  echo "$inputdir/$hemi/to_precentral_mask{1..12}.nii.gz"  >> "$out/$str/tracts/$hemi/targets.txt"
-  echo "$inputdir/$hemi/to_postcentral_mask{1..12}.nii.gz"  >> "$out/$str/tracts/$hemi/targets.txt"
-  echo "$inputdir/$hemi/{1..75}.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
+  for mask in ar_mask{1..8} or_mask{1..10} str_mask{1..10} atr_mask{1..8} fx_mask{1..10} \
+            to_precentral_mask{1..12} to_postcentral_mask{1..12} {1..75}; do
+    echo "$inputdir/$hemi/$mask.nii.gz" >> "$out/$str/tracts/$hemi/targets.txt"
+  done
   # create a list containing termination masks
   echo "$inputdir/cortex.nii.gz" > "$out/$str/tracts/$hemi/stops.txt"
   echo "$inputdir/csf.nii.gz" >> "$out/$str/tracts/$hemi/stops.txt"
