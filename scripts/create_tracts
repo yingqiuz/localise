@@ -43,38 +43,14 @@ Usage() {
     exit 1
 }
 
-Usage() {
-    cat << EOF
+[ "$1" = "" ] && Usage
 
-Usage:
-    create_tracts -bpx <bedpostX_dir> -out <output_dir> -masks <masks_dir> -str <str_name>
-    create_tracts -bpx <bedpostX_dir> -out <output_dir> -masks <masks_dir> -str <str_name> -warp <ref2diff> <diff2ref> -ref <refimage> -gpu
-    create_tracts -help
-
-Example:
-    create_tracts -masks subj001/masks -bpx subj001/dMRI.bedpostX -seed thalamus.nii.gz -out subj001
-
-Creates tracts for the specified seed, using fiber samples estimated via BedpostX
-
-Compulsory arguments:
-    -bpx <folder>                   Path to bedpostx folder
-    -masks <folder>                 Path to mask folder
-    -str <structure_name>           Structure to be localised, e.g., vim, lgn, etc.
-    -out <folder>                   Path to output folder
-
-Optional arguments:
-    -warp <ref2diff> <diff2ref>     (Optional) Transformation matrix/field between the reference space (i.e., the space of the anatomical masks) and the diffusion space.
-                                    Necessary if the reference space is not the diffusion space.
-    -ref <path>                     (Optional) Path to reference image, usually in the individual T1 native space.
-                                    Necessary if the reference space is not the diffusion space.
-    -ptx_opts <options.txt>         (Optional) Pass extra probtrackx2 options as a text file to override defaults, e.g. --steplength=0.2 --distthresh=10
-    -gpu                            (Optional) Use the GPU version of probtractx2.
-
-EOF
-    exit 1
-}
-
-[ -z "$1" ] && Usage
+for arg in "$@"
+do
+    if [ "$arg" == "--help" ]; then
+        Usage
+    fi
+done
 
 if [ -z "$FSLDIR" ]; then
   echo "Environment variable $FSLDIR does not exist. Please set up FSLDIR. "
@@ -111,76 +87,109 @@ while [ -n "$1" ]; do
     -gpu)
     prog="probtrackx2_gpu"
     ;;
-    -ref)
-    ref="$2"
+    --ref=*)
+    ref="${arg#*=}"
     shift
     ;;
-    -bpx)
-    bpx="$2"
+    --samples=*)
+    samples="${arg#*=}"
     shift
     ;;
-    -out)
-    out="$2"
+    --out=*)
+    out="${arg#*=}"
     shift
     ;;
-    -masks)
-    inputdir="$2"
+    --inputdir=*)
+    inputdir="${arg#*=}"
     shift
     ;;
-    -str)
-    str="$2"
+    --brainmask=*)
+    brainmask="${arg#*=}"
     shift
     ;;
-    -warp)
-    ref2diff="$2"
-    diff2ref="$3"
-    shift 2;
+    --xfm=*)
+    xfm="${arg#*=}"
+    shift
     ;;
-    -ptx_opts)
-    ptx_opts=$(cat "$2")
+    --nsteps=*)
+    nsteps="${arg#*=}"
+    shift
+    ;;
+    --cthr=*)
+    cthr="${arg#*=}"
+    shift
+    ;;
+    --verbose=*)
+    verbose="${arg#*=}"
+    shift
+    ;;
+    --steplength=*)
+    steplength="${arg#*=}"
+    shift
+    ;;
+    --nsamples=*)
+    nsamples="${arg#*=}"
+    shift
+    ;;
+    --fibthresh=*)
+    fibthresh="${arg#*=}"
+    shift
+    ;;
+    --sampvox=*)
+    sampvox="${arg#*=}"
+    shift
+    ;;
+    --distthresh=*)
+    distthresh="${arg#*=}"
+    shift
+    ;;
+    --gpu)
+    prog="probtrackx2_gpu"
     shift
     ;;
     *)
-    echo "Unknown option: $1" >&2
+    echo "Unknown option: $arg"
+    Usage
     exit 1
     ;;
   esac
-  shift
 done
 
-# Check for required arguments
-
-for file in inputdir bpx str out; do
-  if [ -z "${!file}" ]; then
-    echo "Error: Missing required argument -$file. Please specify the $file." >&2
-    exit 1
-  fi
-done
-
-for file in inputdir bpx; do
-  if [ ! -d "${!file}" ]; then
-    echo "${!file} does not exist. Please double check the path." >&2
-    exit 1
-  fi
-done
-
-refpath=$(get_abs_file_path "$inputdir")
-
-# create output dir
-mkdir -p "$out/$str/tracts/left" "$out/$str/tracts/right" "$out/$str/logs"
-
-case "$str" in
-  vim)
-  seed="tha.nii.gz"
-  ;;
-  lgn)
-  seed="lgn_bin.nii.gz"
-  ;;
-  *)
-  echo "Error: Unknown structure $str. Please specify a valid structure." >&2
+### Check if required arguments are provided
+if [ -z "$inputdir" ]; then
+  echo "Error: Missing required argument --inputdir, the folder that contains anatomical masks"
   exit 1
-  ;;
-esac
+elif [ ! -d $inputdir ]; then
+  echo "$inputdir does not exist. "
+  exit 1
+else
+  refpath=$(get_abs_file_path "$inputdir")
+fi
+
+if [ -z "$samples" ]; then
+  echo "Error: Missing required argument --samples, "
+  echo "Please specify the bedpostX directory that stores fibre orientation files, e.g., data.bedpostX"
+  exit 1
+fi
+
+#if [ -z "$hemi" ]; then
+  #echo "Error: Missing required argument --hemi, left or right"
+  #exit 1
+#fi
+
+if [ -z "$out" ]; then
+  out=$refpath/streamlines
+  echo "output directory not specified. create $out to store tract density maps in reference space"
+fi
+
+if [ -z "$seed" ]; then
+  echo "Seed mask not specified. default using $inputdir/tha.nii.gz..."
+  seed=$inputdir/tha
+  if [ ! -f $seed.nii.gz ] && [ ! -f $seed.nii ]; then
+    echo "$seed not found."
+    exit 1
+  fi
+fi
 
 if [ -z "$brainmask" ]; then
   brainmask="$bpx/nodif_brain_mask"
@@ -190,63 +199,47 @@ if [ -z "$brainmask" ]; then
   fi
 fi
 
-echo "## Create commands for tractography" > "$out/$str/create_tracts_cmds";
-echo " " >> "$out/$str/create_tracts_cmds";
-
-# for left and right hemispheres
-for hemi in left right; do
-  targets_file="$out/$str/tracts/$hemi/targets.txt"
-  stops_file="$out/$str/tracts/$hemi/stops.txt"
-
-  {
-    ## create a list containing the anatomical masks
-    for mask in ar_mask{1..8} or_mask{1..10} str_mask{1..10} atr_mask{1..8} fx_mask{1..10} \
-              to_precentral_mask{1..12} to_postcentral_mask{1..12} {1..75}; do
-      printf "%s/%s/%s\n" "$inputdir" "$hemi" "$mask.nii.gz"
-    done
-  } > "$targets_file"
-  # create a list containing termination masks
-  printf "%s\n" "$inputdir/cortex.nii.gz" "$inputdir/csf.nii.gz" > "$stops_file"
-
-  opts="-x $inputdir/$hemi/$seed -s $bpx/merged -m $brainmask --dir=$out/$str/tracts/$hemi --forcedir --os2t $ptx_opts"
-
-  if [ -n "$ref2diff" ]; then
-    opts="$opts --xfm=$ref2diff --invxfm=$diff2ref"
-    if [ -n "$ref" ]; then
-      opts="$opts --seedref=$ref"
-    else
-      opts="$opts --seedref=$inputdir/$hemi/$seed"
-    fi
-  fi
-
-  cmd="$FSLDIR/bin/$prog $opts"
-  cmd="$cmd --targetmasks=$out/$str/tracts/$hemi/targets.txt"
-  cmd="$cmd --avoid=$inputdir/$hemi/exclusion --stop=$out/$str/tracts/$hemi/stops.txt"
-
-  ### run tractography...
-  echo $cmd >> "$out/$str/create_tracts_cmds"
-  #eval $cmd;
-  if [[ "$str" == "vim" ]]; then  
-    ## extra features for VIM
-    echo $inputdir/$hemi/scpct_mask{1..15}.nii.gz > $out/$str/tracts/$hemi/scpct_targets.txt
-    echo $inputdir/$hemi/cerebellum_target.nii.gz >> $out/$str/tracts/$hemi/scpct_targets.txt
-    cmd="$FSLDIR/bin/$prog $opts"
-    cmd="$cmd --targetmasks=$out/$str/tracts/$hemi/scpct_targets.txt"
-    cmd="$cmd --avoid=$inputdir/$hemi/exclusion --stop=$inputdir/$hemi/stop_for_scpct"
-    echo "$cmd" >> "$out/$str/create_tracts_cmds"
-  elif [[ "$str" == "lgn" ]]; then
-    echo "#TODO: implement additional tractography protocols for LGN"
-  fi
-  #eval $cmd;
-done
-
-queue_status=`fsl_sub --has_queues`
-if [[ "$queue_status" == "Yes" ]]; then
-  if $gpu; then
-    fsl_sub -T 300 -R 30 -n --coprocessor=cuda  -N "create_tracts_for_${str}" -l "$out/$str/logs" -t "$out/$str/create_tracts_cmds"
-  else
-    fsl_sub -T 2160 -R 30 -n -N "create_tracts_for_${str}" -l "$out/$str/logs" -t "$out/$str/create_tracts_cmds"
-  fi
-else
-  bash "$out/$str/create_tracts_cmds"
+### create output directory
+if [ ! -d $out ]; then
+  mkdir -p $out
 fi
+
+## create a list containing the anatomical masks
+echo $inputdir/ar_mask{1..8}.nii.gz > $inputdir/targets.txt;
+echo $inputdir/or_mask{1..10}.nii.gz >> $inputdir/targets.txt;
+echo $inputdir/str_mask{1..10}.nii.gz >> $inputdir/targets.txt;
+echo $inputdir/atr_mask{1..8}.nii.gz >> $inputdir/targets.txt;
+echo $inputdir/fx_mask{1..10}.nii.gz >> $inputdir/targets.txt;
+echo $inputdir/to_precentral_mask{1..12}.nii.gz  >> $inputdir/targets.txt;
+echo $inputdir/to_postcentral_mask{1..12}.nii.gz  >> $inputdir/targets.txt;
+echo $inputdir/{1..75}.nii.gz >> $inputdir/targets.txt;
+
+opts="-x $seed -s $samples/merged -m $brainmask --dir=$out"
+opts="$opts --verbose=$verbose --cthr=$cthr --nsteps=$nsteps --steplength=$steplength --nsamples=$nsamples --fibthresh=$fibthresh"
+opts="$opts --distthresh=$distthresh --sampvox=$sampvox -l --onewaycondition --forcedir --pd --opd --os2t --modeuler"
+
+if [ ! -z "$xfm" ]; then
+  opts="$opts --xfm=$xfm"
+  if [ ! -z "$ref" ]; then
+    opts="$opts --seedref=$ref"
+  else
+    opts="$opts --seedref=$seed"
+  fi
+fi
+
+cmd="$FSLDIR/bin/$prog $opts"
+cmd="$cmd --targetmasks=$inputdir/targets.txt"
+cmd="$cmd --avoid=$inputdir/cerebellum --stop=$inputdir/cortex"
+
+### run tractography...
+echo $cmd;
+eval $cmd;
+
+echo $inputdir/scpct_mask{1..15}.nii.gz > $inputdir/targets.txt;
+echo $inputdir/cerebellum_target.nii.gz >> $inputdir/targets.txt;
+cmd="$FSLDIR/bin/$prog $opts"
+cmd="$cmd --targetmasks=$inputdir/targets.txt"
+cmd="$cmd --avoid=$inputdir/exclusion --stop=$inputdir/stop_for_scpct"
+echo $cmd;
+eval $cmd;
+
