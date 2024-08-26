@@ -33,6 +33,7 @@ dependencies = [
     "pytest",
     "argparse",
     "fslpy",
+    "typing",
 ]
 
 [project.urls]

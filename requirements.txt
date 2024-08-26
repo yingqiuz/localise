@@ -6,3 +6,4 @@ scipy
 pytest
 argparse
 fslpy
+typing
