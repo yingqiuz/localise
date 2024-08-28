@@ -2,7 +2,7 @@ import pytest
 from localise.modes import RESOURCES_PATH
 from localise.modes import (
     check_values, check_prediction_params, 
-    _handle_default_model, predict_mode
+    _handle_default_model, check_training_params
 )
 from pathlib import Path
 
@@ -33,13 +33,13 @@ def test_check_prediction_params(tmp_path):
         out=out, data_type=data_type, hemisphere=hemisphere, 
         spatial=True
     )
-    assert params['masks'] == [tmp_path / 'masks']
+    assert params['masks'] == [tmp_path / 'masks' / hemisphere]
     assert params['tracts'] == [tmp_path / 'tracts' / hemisphere]
     assert params['structure'] == 'vim'
     assert params['seed'] == [masks / hemisphere / 'tha.nii.gz']
     assert params['tracts_list'] == (RESOURCES_PATH / 'data' / 
                                      f'{structure}_default_target_list.txt')
-    assert params['atlas'] == None
+    assert params['atlas'] == [None]
     assert params['out'] == [out / hemisphere / 'probmap.nii.gz']
     assert params['hemisphere'] == 'left'
     assert params['spatial']
@@ -57,7 +57,7 @@ def test_check_prediction_params(tmp_path):
         spatial=True
     )
     assert params['masks'] == [
-        Path('sub1/masks'), Path('sub2/masks')
+        Path('sub1/masks') / hemisphere, Path('sub2/masks') / hemisphere
     ]
     assert params['tracts'] == [
         Path(f'sub1/tracts/{hemisphere}'), Path(f'sub2/tracts/{hemisphere}')
@@ -80,7 +80,7 @@ def test_check_prediction_params(tmp_path):
         tracts_list=tracts_list, spatial=True
     )
     assert params['masks'] == [
-        Path('sub1/masks'), Path('sub2/masks')
+        Path('sub1/masks') / hemisphere, Path('sub2/masks') / hemisphere
     ]
     assert params['tracts'] == [
         Path(f'sub1/tracts/{hemisphere}'), Path(f'sub2/tracts/{hemisphere}')
@@ -112,3 +112,53 @@ def test_handle_default_model():
         RESOURCES_PATH / 'models' / 'vim' / 'single32' / 'left' / 
         'model_with_prior.pth'
     )
+    
+def test_check_training_params(tmp_path):
+    # for multiple subjects
+    seed = tmp_path / 'seeds.txt'
+    seed.write_text('sub1/left/seeds.nii.gz\nsub2/left/seeds.nii.gz')
+    labels = tmp_path / 'labels.txt'
+    labels.write_text('sub1/left/labels.nii.gz\nsub2/left/labels.nii.gz')
+    masks = tmp_path / 'masks.txt'
+    masks.write_text('sub1/masks\nsub2/masks')
+    tracts = tmp_path / 'tracts.txt'
+    tracts.write_text('sub1/tracts/\nsub2/tracts/')
+    hemisphere = 'left'
+    out_model = tmp_path / 'out_model.pth'
+    tracts_list = tmp_path / 'tracts_list.txt'
+    params = check_training_params(
+        masks=masks, labels=labels, seed=seed, tracts=tracts, 
+        tracts_list=tracts_list, hemisphere=hemisphere, out_model=out_model
+    )
+    assert params['masks'] == [
+        Path('sub1/masks') / hemisphere, Path('sub2/masks') / hemisphere
+    ]
+    assert params['labels'] == [
+        Path('sub1/left/labels.nii.gz'), Path('sub2/left/labels.nii.gz')
+    ]
+    assert params['seed'] == [
+        Path('sub1/left/seeds.nii.gz'), Path('sub2/left/seeds.nii.gz')
+    ]
+    assert params['tracts'] == [
+        Path(f'sub1/tracts/{hemisphere}'), Path(f'sub2/tracts/{hemisphere}')
+    ]
+    assert params['hemisphere'] == 'left'
+    assert params['tracts_list'] == tmp_path / 'tracts_list.txt'
+    
+    # for a single subject
+    seed = tmp_path / 'seeds.nii.gz'
+    labels = tmp_path / 'labels.nii.gz'
+    tracts = tmp_path / 'tracts'
+    hemisphere = 'right'
+    params = check_training_params(
+        labels=labels, seed=seed, tracts=tracts, 
+        tracts_list=tracts_list, 
+        hemisphere=hemisphere, out_model=out_model
+    )
+    assert params['masks'] == [None]
+    assert params['labels'] == [tmp_path / 'labels.nii.gz']
+    assert params['seed'] == [tmp_path / 'seeds.nii.gz']
+    assert params['tracts'] == [tmp_path / 'tracts' / 'right']
+    assert params['hemisphere'] == 'right'
+    assert params['out_model'] == tmp_path / 'out_model.pth'
+    

@@ -40,9 +40,11 @@ def return_hemisphere(hemisphere):
             'Please specify left or right.'
         )
 
-def check_prediction_params(masks, seed=None, structure=None, tracts=None, 
-                 tracts_list=None, data=None, atlas=None, out=None, model=None, 
-                 data_type=None, hemisphere=None, spatial=True):
+def check_prediction_params(
+    masks, seed=None, structure=None, tracts=None, 
+    tracts_list=None, data=None, atlas=None, out=None, 
+    model=None, data_type=None, hemisphere='left', spatial=True
+):
     """
     Validate and process input parameters for tract analysis. (single subject)
     
@@ -50,7 +52,29 @@ def check_prediction_params(masks, seed=None, structure=None, tracts=None,
     dict: A dictionary containing the validated and processed parameters.
     """
     params = locals()
-    params['masks'] = check_values(masks)
+    
+    if seed is None:
+        if masks is None:
+            raise ValueError(
+                'Please specify the path to the masks '
+                'if you do not specify the seed.'
+            )
+        if structure is None:
+            raise ValueError(
+                'When using a custom model, '
+                'please specify the seed mask.'
+            )
+        params['seed'] = [
+            mask_path / hemisphere / f'{SEEDS_DICT[structure]}.nii.gz' 
+            for mask_path in check_values(masks)
+        ]
+    else:
+        params['seed'] = check_values(seed)
+
+    params['masks'] = (
+        [mask_path / hemisphere for mask_path in check_values(masks)] 
+        if masks is not None else [None] * len(params['seed'])
+    )
     # check params and return path objects
     if out is None: 
         raise ValueError('Please specify the output name.')
@@ -63,27 +87,21 @@ def check_prediction_params(masks, seed=None, structure=None, tracts=None,
                 'When using a custom model, either set `atlas=None`, '
                 'or specify your own group-average probability map.'
             )
-        params['atlas'] = [mask_path / hemisphere / f'{structure}.nii.gz'
+        params['atlas'] = [mask_path / f'{structure}.nii.gz'
                            for mask_path in params['masks']]
     elif atlas is not None:
         params['atlas'] = check_values(atlas)
-
-    if tracts is not None:
-        params['tracts'] = [tract_path / hemisphere
-                            for tract_path in check_values(tracts)]
-    
-    if seed is None:
-        if structure is None:
-            raise ValueError(
-                'When using a custom model, please specify the seed mask.'
-            )
-        params['seed'] = [mask_path / hemisphere / f'{SEEDS_DICT[structure]}.nii.gz' 
-                          for mask_path in params['masks']]
     else:
-        params['seed'] = check_values(seed)
+        params['atlas'] = [None] * len(params['masks'])
+
+    params['tracts'] = (
+        [tract_path / hemisphere for tract_path in check_values(tracts)]
+        if tracts is not None
+        else [None] * len(params['masks'])
+    )
 
     if data is None:
-        if tracts is None:
+        if None in params['tracts']:
             raise ValueError(
                 'Please specify path to the tract-density maps '
                 'or use the presaved data.'
@@ -94,6 +112,7 @@ def check_prediction_params(masks, seed=None, structure=None, tracts=None,
                 'you should either specify the list containing the targets.'
                 'or use pre-saved data.'
             )
+        params['data'] = [None] * len(params['masks'])
     else:
         params['data'] = check_values(data)
 
@@ -103,7 +122,7 @@ def check_prediction_params(masks, seed=None, structure=None, tracts=None,
             spatial=spatial, atlas=atlas
         )
         # checking whether or not to use default target list
-        if params['data'] is None and params['tracts_list'] is None:
+        if None in params['data'] and params['tracts_list'] is None:
             params['tracts_list'] = (RESOURCES_PATH / 'data' / 
                                      f'{structure}_default_target_list.txt')
             logging.info('Using default tract list.')
@@ -147,6 +166,7 @@ def predict_mode(masks, seed=None, structure=None, tracts=None,
         logging.basicConfig(level=logging.INFO)
 
     logging.info('Predict mode on. \n')
+    hemisphere = return_hemisphere(hemisphere)
     ## subjects = check_values(subject)
     # check params
     params = check_prediction_params(
@@ -156,49 +176,60 @@ def predict_mode(masks, seed=None, structure=None, tracts=None,
     )
 
     # if data is not specified, load the data from the target list
-    if params['data'] is None:
+    if params['tracts_list'] is not None:
         with open(params['tracts_list'], 'r') as f:
             target_list = [line.strip() for line in f]
 
-    data = load_features(
-        masks=params['masks'], 
-        tracts=params['tracts'], 
-        target_list=target_list, 
-        data=params['data'], 
-        atlas=params['atlas'],
-        power=[2, 1, 0.5]
-    )
+    data = [
+        load_features(
+            masks=params['masks'][i], 
+            tracts=params['tracts'][i], 
+            target_list=target_list, 
+            data=params['data'][i], 
+            atlas=params['atlas'][i],
+            seed=params['seed'][i],
+            out=params['out'][i],
+            power=[2, 1, 0.5]
+        )
+        for i in len(params['masks'])
+    ]
 
-    prediction = apply_pretrained_model(data, params['model'], spatial_model=spatial)
+    predictions = apply_pretrained_model(
+        data, params['model'], 
+        spatial_model=spatial
+    )
 
     logging.info('Localise done. Now saving results...')
     # save to nii files
-    save_nifti(prediction.detach().numpy()[:, -1], params['seed'], params['out'])
+    for i in len(params['masks']):
+        save_nifti(
+            predictions[i].detach().numpy()[:, -1], 
+            params['seed'][i], params['out'][i]
+        )
 
     logging.info('Done.')
 
-    return prediction
+    return predictions
 
-def check_training_params(masks, labels, tracts=None, tracts_list=None, 
-                          seed=None, data=None, atlas=None, out_model=None, 
-                          hemisphere=None, epochs=100):
+def check_training_params(seed, labels, masks=None, tracts=None, tracts_list=None, 
+                          data=None, atlas=None, out_model=None, 
+                          hemisphere='left', epochs=100):
     """Validate and process input parameters for training mode."""
     params = locals()
-    params['hemisphere'] = return_hemisphere(hemisphere)
-    params['masks'] = Path(masks).resolve()
-    params['labels'] = Path(labels).resolve()
-    
-    if seed is None:
-        raise ValueError('Please specify the seed mask '
-                         'when training a custom model.')
-    params['seed'] = Path(seed).resolve()
-    
+    params['seed'] = check_values(seed)
+    params['labels'] = check_values(labels)
+
     if out_model is None:
         raise ValueError('Please specify the output model name.')
     params['out_model'] = Path(out_model)
     
-    if tracts is not None:
-        params['tracts'] = Path(tracts) / params['hemisphere']
+    params['masks'] = ([mask_path / hemisphere for mask_path in check_values(masks)] 
+                       if masks is not None else [None] * len(params['seed']))
+    
+    params['tracts'] = (
+        [tract_path / hemisphere for tract_path in check_values(tracts)] 
+        if tracts is not None else [None] * len(params['seed'])
+    )
     
     if data is None:
         if tracts is None or tracts_list is None:
@@ -206,13 +237,15 @@ def check_training_params(masks, labels, tracts=None, tracts_list=None,
                 'Please specify path to the tract-density maps '
                 'and the list of targetsor use the presaved data.'
             )
+        params['data'] = [None] * len(params['seed'])
     else:
-        params['data'] = Path(data).resolve()
+        params['data'] = check_values(data)
 
-    if atlas is not None:
-        params['atlas'] = Path(atlas).resolve()
+    params['atlas'] = ([atlas_path for atlas_path in check_values(atlas)] 
+                       if atlas is not None else [None] * len(params['seed']))
+    params['epochs'] = epochs
     return params
-    
+
 def train_mode(masks, labels, tracts=None, tracts_list=None, 
                seed=None, data=None, atlas=None, out_model=None, 
                spatial=True, hemisphere=None, epochs=100, verbose=True):
