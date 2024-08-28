@@ -1,132 +1,114 @@
-import os, pytest
-from localise.modes import get_subjects
-from localise.modes import predict_mode, train_mode
-from localise.modes import return_hemisphere, check_params
+import pytest
+from localise.modes import RESOURCES_PATH
+from localise.modes import (
+    check_values, check_prediction_params, 
+    _handle_default_model, predict_mode
+)
 from pathlib import Path
-from unittest.mock import patch
-
 
 path_to_data = Path(__file__).parent / 'test_data'
 
-def test_get_subjects(tmp_path):
-    # Test with file
-    d = tmp_path / "subdir"
-    d.mkdir()
-    p = d / "subjects.txt"
-    p.write_text("subject1\nsubject2\n")
+def test_check_values(tmp_path):
+    masks = tmp_path / 'masks.txt'
+    masks.write_text('sub1/left/probmap.nii.gz\nsub1/right/probmap.nii.gz')
+    assert check_values(masks) == [
+        Path('sub1/left/probmap.nii.gz'), 
+        Path('sub1/right/probmap.nii.gz')
+    ]
+    masks = tmp_path / 'masks.nii.gz'
+    assert check_values(masks) == [Path(tmp_path / 'masks.nii.gz')]
+    tracts = tmp_path / 'tracts'
+    assert check_values(tracts) == [Path(tmp_path / 'tracts')]
 
-    result = get_subjects(str(p))
-    assert result == ["subject1", "subject2"]
-
-    # Test with directory
-    result = get_subjects(str(d))
-    assert result == [str(d)]
-
-    # Test with invalid path
-    with pytest.raises(ValueError):
-        get_subjects(str(tmp_path / "nonexistent"))
-
-def test_return_hemisphere():
-    # Test valid inputs for left hemisphere
-    assert return_hemisphere('left') == 'left'
-    assert return_hemisphere('l') == 'left'
-    assert return_hemisphere('L') == 'left'
-    
-    # Test valid inputs for right hemisphere
-    assert return_hemisphere('right') == 'right'
-    assert return_hemisphere('r') == 'right'
-    assert return_hemisphere('R') == 'right'
-
-    # Test invalid input
-    with pytest.raises(ValueError, match=r"Invalid hemisphere: center. Please specify left or right."):
-        return_hemisphere('center')
-    
-    # Test empty input
-    with pytest.raises(ValueError, match=r"Invalid hemisphere: . Please specify left or right."):
-        return_hemisphere('')
-
-def test_check_params():
-    mask_dir = "masks"
-    target_dir = "targets"
-    hemisphere = "left"
-
-    # Test valid inputs
-    mask, m_dir, target_path, data = check_params("mask1.nii.gz", mask_dir, target_dir, "data1.nii.gz", hemisphere)
-    assert mask == os.path.join(mask_dir, hemisphere, "mask1.nii.gz")
-    assert m_dir == mask_dir
-    assert target_path == os.path.join(target_dir, hemisphere)
-    assert data == os.path.join(target_dir, hemisphere, "data1.nii.gz")
-
-    # Test missing mask_dir
-    with pytest.raises(ValueError, match="Please specify the directory for anatomical masks"):
-        check_params("mask1.nii.gz", None, target_dir, "data1.nii.gz", hemisphere)
-
-    # Test missing target_dir
-    with pytest.raises(ValueError, match="Please specify the directory for target masks"):
-        check_params("mask1.nii.gz", mask_dir, None, "data1.nii.gz", hemisphere)
-
-    # Test None data
-    mask, m_dir, target_path, data = check_params("mask1.nii.gz", mask_dir, target_dir, None, hemisphere)
-    assert data is None
-
-def test_predict_mode():
-    subject = f'{path_to_data}/101915'
-    mask = 'mist_left_thalamus_mask_small_1.nii.gz'
-    mask_dir = 'roi'
+def test_check_prediction_params(tmp_path):
+    # for a single subject
+    masks = tmp_path / 'masks'
+    tracts = tmp_path / 'tracts'
+    structure = 'vim'
+    out = tmp_path / 'out'
+    data_type = 'single32'
     hemisphere = 'left'
-    target_dir = 'streamlines'
-    target_list = f'{path_to_data}/models/vim_default_target_list160.txt'
-    atlas = 'roi/left/vim.nii.gz'
-    out = 'roi/left/prediction.nii.gz'
-    model = f'{path_to_data}/models/tmp_model160_2mm_single32.pth'
-
-    predict_mode(subject=subject, mask=mask, mask_dir=mask_dir, target_dir=target_dir, 
-                 target_list=target_list, atlas=atlas, out=out, model=model, hemisphere=hemisphere)
-    assert os.path.isfile(os.path.join(subject, out))
-    os.remove(os.path.join(subject, out))
-
-    predict_mode(subject=subject, mask=mask, mask_dir=mask_dir, structure='vim', target_dir=target_dir, 
-                 atlas='default', out=out, data_type='2mm_single32', hemisphere=hemisphere)
-    assert os.path.isfile(os.path.join(subject, out))
-    os.remove(os.path.join(subject, out))
+    params = check_prediction_params(
+        masks=masks, structure=structure, tracts=tracts, 
+        out=out, data_type=data_type, hemisphere=hemisphere, 
+        spatial=True
+    )
+    assert params['masks'] == [tmp_path / 'masks']
+    assert params['tracts'] == [tmp_path / 'tracts' / hemisphere]
+    assert params['structure'] == 'vim'
+    assert params['seed'] == [masks / hemisphere / 'tha.nii.gz']
+    assert params['tracts_list'] == (RESOURCES_PATH / 'data' / 
+                                     f'{structure}_default_target_list.txt')
+    assert params['atlas'] == None
+    assert params['out'] == [out / hemisphere / 'probmap.nii.gz']
+    assert params['hemisphere'] == 'left'
+    assert params['spatial']
     
-    with pytest.raises(ValueError):
-        predict_mode(subject=subject, mask=mask, mask_dir=mask_dir, target_dir=target_dir, 
-                     atlas=atlas, out=out, hemisphere=hemisphere)
-        
-    with pytest.raises(ValueError):
-        predict_mode(subject=subject, mask=mask, mask_dir=mask_dir, structure='vim', target_dir=target_dir, 
-                     atlas=atlas, out=out, hemisphere=hemisphere)
-        
-    with pytest.raises(ValueError):
-        predict_mode(subject=subject, mask=mask, mask_dir=mask_dir, structure='vim', target_dir=target_dir, 
-                     atlas=atlas, out=out, hemisphere=None)
-        
-    predict_mode(subject=subject, mask=mask, mask_dir=mask_dir, structure='vim', target_dir=target_dir, 
-                 target_list=target_list, atlas=atlas, out=out, data_type='2mm_single32', hemisphere=hemisphere)
-
-    assert os.path.isfile(os.path.join(subject, out))
-    os.remove(os.path.join(subject, out))
-
-    predict_mode(subject=subject, mask=mask, mask_dir=mask_dir, target_dir=target_dir, 
-                 data='X160_small_1mm.npy', structure='vim', spatial=False,
-                 atlas=None, out=out, data_type='2mm_single32', hemisphere=hemisphere)
-
-    assert os.path.isfile(os.path.join(subject, out))
-    os.remove(os.path.join(subject, out))
-
-def test_train_mode():
-    subject = f'{path_to_data}/100206'
-    mask_dir = 'roi'
-    mask = 'tha_small.nii.gz'
-    label = 'high-quality-labels/left/labels.nii.gz'
-    target_dir = 'streamlines'
-    target_list = f'{path_to_data}/models/targets_list113_left.txt'
-    atlas = 'roi/left/atlas.nii.gz'
-    out_model = f'{path_to_data}/models/test_model.pth'
-
-    train_mode(subject=subject, mask=mask, label=label, mask_dir=mask_dir, target_dir=target_dir,
-               target_list=target_list, atlas=atlas, out_model=out_model, hemisphere='left')
+    # for a group of subjects in txt
+    masks = tmp_path / 'masks.txt'
+    masks.write_text('sub1/masks\nsub2/masks')
+    tracts = tmp_path / 'tracts.txt'
+    tracts.write_text('sub1/tracts/\nsub2/tracts/')
+    out = tmp_path / 'out.txt'
+    out.write_text('sub1/out\nsub2/out')
+    params = check_prediction_params(
+        masks=masks, structure=structure, tracts=tracts, 
+        out=out, data_type=data_type, hemisphere=hemisphere, 
+        spatial=True
+    )
+    assert params['masks'] == [
+        Path('sub1/masks'), Path('sub2/masks')
+    ]
+    assert params['tracts'] == [
+        Path(f'sub1/tracts/{hemisphere}'), Path(f'sub2/tracts/{hemisphere}')
+    ]
+    assert params['out'] == [
+        Path(f'sub1/out/{hemisphere}/probmap.nii.gz'), 
+        Path(f'sub2/out/{hemisphere}/probmap.nii.gz')
+    ]
+    assert params['model'] == (RESOURCES_PATH / 'models' / structure / data_type / 
+                               hemisphere / 'spatial_model.pth')
     
-    assert os.path.isfile(out_model)
-    os.remove(out_model)
+    # other scenarios
+    model = tmp_path / 'model.pth'
+    seed = tmp_path / 'seeds.txt'
+    seed.write_text('sub1/left/seeds.nii.gz\nsub2/left/seeds.nii.gz')
+    tracts_list = tmp_path / 'tracts_list.txt'
+    params = check_prediction_params(
+        masks=masks, model=model, seed=seed, tracts=tracts, 
+        out=out, data_type=data_type, hemisphere=hemisphere, 
+        tracts_list=tracts_list, spatial=True
+    )
+    assert params['masks'] == [
+        Path('sub1/masks'), Path('sub2/masks')
+    ]
+    assert params['tracts'] == [
+        Path(f'sub1/tracts/{hemisphere}'), Path(f'sub2/tracts/{hemisphere}')
+    ]
+    assert params['out'] == [
+        Path(f'sub1/out/{hemisphere}/probmap.nii.gz'), 
+        Path(f'sub2/out/{hemisphere}/probmap.nii.gz')
+    ]
+    assert params['seed'] == [
+        Path('sub1/left/seeds.nii.gz'), Path('sub2/left/seeds.nii.gz')
+    ]
+    assert params['model'] == model
+    
+    data = tmp_path / 'data.txt'
+    data.write_text('sub1/data.npy\nsub2/data.npy')
+    params = check_prediction_params(
+        masks=masks, data=data, model=model, seed=seed,
+        out=out, data_type=data_type, hemisphere=hemisphere, 
+        spatial=True, 
+    )
+    assert params['data'] == [Path('sub1/data.npy'), Path('sub2/data.npy')]
+
+def test_handle_default_model():
+    assert _handle_default_model('vim', 'single32', 'left', True, None) == (
+        RESOURCES_PATH / 'models' / 'vim' / 'single32' / 'left' / 
+        'spatial_model.pth'
+    )
+    assert _handle_default_model('vim', 'single32', 'left', False, 'atlas.nii.gz') == (
+        RESOURCES_PATH / 'models' / 'vim' / 'single32' / 'left' / 
+        'model_with_prior.pth'
+    )

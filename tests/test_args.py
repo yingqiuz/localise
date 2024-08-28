@@ -13,7 +13,7 @@ def test_parse_arguments():
                 '--seed', '/path/to/subject/seed.nii.gz',
                 '--masks', '/path/to/subject/roi',
                 '--labels', '/path/to/subject/roi/labels/label.nii.gz',
-                '--out', 'model.pth',
+                '--out_model', 'model.pth',
                 '--hemisphere', 'left',
                 '--data', '/path/to/subject/data.npy',
                 '--atlas', '/path/to/subject/atlas.nii.gz']):
@@ -24,7 +24,7 @@ def test_parse_arguments():
         assert args.seed == '/path/to/subject/seed.nii.gz'
         assert args.masks == '/path/to/subject/roi'
         assert args.labels == '/path/to/subject/roi/labels/label.nii.gz'
-        assert args.out == 'model.pth'
+        assert args.out_model == 'model.pth'
         assert args.data == '/path/to/subject/data.npy'
         assert args.atlas == '/path/to/subject/atlas.nii.gz'
         assert args.epochs == 100
@@ -36,7 +36,7 @@ def test_parse_arguments():
                 '--seed', '/path/to/subject/seed.nii.gz',
                 '--masks', '/path/to/subject/roi',
                 '--labels', '/path/to/subject/roi/labels/label.nii.gz',
-                '--out', 'model.pth',
+                '--out_model', 'model.pth',
                 '--hemisphere', 'left',
                 '--tracts', '/path/to/subject/tracts/',
                 '--tracts_list', 'tracts_list.txt',
@@ -48,7 +48,7 @@ def test_parse_arguments():
         assert args.seed == '/path/to/subject/seed.nii.gz'
         assert args.masks == '/path/to/subject/roi'
         assert args.labels == '/path/to/subject/roi/labels/label.nii.gz'
-        assert args.out == 'model.pth'
+        assert args.out_model == 'model.pth'
         assert args.tracts == '/path/to/subject/tracts/'
         assert args.tracts_list == 'tracts_list.txt'
         assert args.epochs == 1000

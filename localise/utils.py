@@ -14,13 +14,13 @@ def get_resources_path():
     """
     if getattr(sys, 'frozen', False):
         # The application is frozen (packaged)
-        return os.path.join(sys._MEIPASS, 'resources')
+        return Path(sys._MEIPASS) / 'resources'
     else:
         # The application is not frozen
         # Get the directory of the current file (utils.py)
-        current_dir = os.path.dirname(os.path.abspath(__file__))
+        current_file = Path(__file__).resolve()
         # Go up one level to the package root, then into 'resources'
-        return os.path.abspath(os.path.join(current_dir, '..', 'resources'))
+        return current_file.parent.parent / 'resources'
 
 def save_nifti(data, mask_file, output_file):
     """

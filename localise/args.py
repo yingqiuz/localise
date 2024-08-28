@@ -22,11 +22,6 @@ def parse_arguments():
         '--subject', '-subject', required=True, type=str, 
         help='Path to the subject directory or a txt file with subject paths.'
     )
-
-    common_group.add_argument(
-        '--seed', '-x', required=True, type=str, 
-        help="Path to the binary seed mask."
-    )
     
     common_group.add_argument(
         '--masks', '-i', required=True, type=str,
@@ -35,11 +30,10 @@ def parse_arguments():
     )
     
     common_group.add_argument(
-        '--out', '-o', required=True, type=str, 
-        help="Output filename for the localised structure (if in prediction mode), "
-             "or the output filename for the trained model (if in training mode)."
+        '--seed', '-x', required=False, type=str, 
+        help="Path to the binary seed mask."
     )
-    
+
     common_group.add_argument(
         '--tracts', '-p', required=False, type=str,
         help="Path to the folder that contains connectivity features, \
@@ -89,6 +83,12 @@ def parse_arguments():
     
     # predict group
     predict_group.add_argument(
+        '--out', '-o', required=False, type=str, 
+        help="Output filename for the localised structure (if in prediction mode), "
+             "or the output filename for the trained model (if in training mode)."
+    )
+    
+    predict_group.add_argument(
         '--structure', '-r', required=False, type=str,
         help="Structure to be localised in lower case, e.g., 'vim' or 'lgn'." 
              "Required if --model is not specified."
@@ -108,6 +108,11 @@ def parse_arguments():
     )
     
     # training mode args
+    train_group.add_argument(
+        '--out_model', required=False, type=str, 
+        help="Path to the output pre-trained model."
+    )
+
     train_group.add_argument(
         '--labels', '-b', required=False, type=str, 
         help="Path to the training labels of the structure (required for training). \
@@ -135,10 +140,19 @@ def parse_arguments():
         # under training mode, default not using atlas
         if args.atlas == 'default':
             args.atlas = args.structure # atlas is either none or the structure
-        # under training mode, either specify the target list or the presaved data
+        # under training mode, must speicify the seed
+        if args.seed is None:
+            p.error('Please specify a seed mask if you want to train a custom model.')
+        if args.out_model is None:
+            p.error('Please specify the output model filename.')
 
     if args.predict:
+        if args.out is None:
+            p.error('Please specify the output directory for localised structures.')
         if args.structure is None:
+            # must specifiy the seed if structure is not specified
+            if args.seed is None:
+                p.error('Please specify the seed mask if you want to use a custom model.')
             # if use custom model, must specify the structure
             if args.model is None:
                 p.error("Please specify a structure to be localised or a \

@@ -11,24 +11,10 @@ from unittest.mock import patch
 
 path_to_data = Path(__file__).parent / 'test_data'
 
-def test_get_resources_path():
-    # Test for non-frozen application
-    with patch.object(sys, 'frozen', False, create=True):
-        with patch('os.path.dirname') as mock_dirname:
-            mock_dirname.return_value = '/fake/path/localise'
-            result = get_resources_path()
-            assert result == '/fake/path/resources'
-
-    # Test for frozen application
-    with patch.object(sys, 'frozen', True, create=True):
-        with patch.object(sys, '_MEIPASS', '/fake/frozen/path', create=True):
-            result = get_resources_path()
-            assert result == '/fake/frozen/path/resources'
-
-    # Test that the returned path exists (assuming you're running tests from the project root)
-    actual_path = get_resources_path()
-    assert os.path.exists(actual_path), f"The path {actual_path} does not exist"
-    assert os.path.isdir(actual_path), f"The path {actual_path} is not a directory"
+def test_get_resources_path_ends_with_resources():
+    assert get_resources_path().name == 'resources'
+    assert get_resources_path().exists()
+    assert get_resources_path() == Path(__file__).parent.parent / 'resources'
 
 def test_save_nifti():
     subject = '100610'

@@ -3,172 +3,242 @@ from pathlib import Path
 from localise.load import load_data, load_features, ShuffledDataLoader
 from localise.train import train_without_val
 from localise.predict import apply_pretrained_model
-from localise.utils import save_nifti
+from localise.utils import save_nifti, get_resources_path
 
 
-PKG_PATH = Path(__file__).parent.parent
-
-def get_subjects(subject_path):
-    """Load subjects from file or directory."""
-    if os.path.isfile(subject_path):
-        with open(subject_path, 'r') as f:
-            return [line.strip() for line in f]
-    elif os.path.isdir(subject_path):
-        return [subject_path]
+RESOURCES_PATH = get_resources_path()
+SEEDS_DICT = {
+    'vim': 'tha',
+    'lgn': 'lgn_bin',
+}
+        
+def check_values(arg):
+    """
+    Check if the input argument is a file or a directory.
+    If it is a txt file, return a list of values.
+    """
+    if arg is not None:
+        path = Path(arg)
+        if path.suffix == '.txt':
+            with open(path, 'r') as f:
+                return [Path(line.strip()) for line in f]
+        else:
+            return [path]
     else:
-        raise ValueError(f'Invalid subject path: {subject_path}. Please specify a correct subject dir or txt file.')
+        return None
 
 def return_hemisphere(hemisphere):
-    ## a function to check hemisphere
+    """Check hemisphere. If not specified, keep it as None."""
     if isinstance(hemisphere, str):
         if hemisphere.lower() in ['left', 'l']:
-            hemisphere = 'left'
+            return 'left'
         elif hemisphere.lower() in ['right', 'r']:
-            hemisphere = 'right'
-        else:
-            raise ValueError(f'Invalid hemisphere: {hemisphere}. Please specify left or right.')
+            return 'right'
     else:
-        raise ValueError(f'Invalid hemisphere: {hemisphere}. Please specify left or right.')
+        raise ValueError(
+            f'Invalid hemisphere: {hemisphere}. '
+            'Please specify left or right.'
+        )
 
-    return hemisphere
-
-def check_params(mask, mask_dir, target_dir, data, hemisphere):
-    # create mask name
-    if mask_dir is None:
-        raise ValueError('Please specify the directory for anatomical masks (relative to the subject folder).')
-
-    mask = os.path.join(mask_dir, hemisphere, mask)
-
-    # create target_path
-    if target_dir is None:
-        raise ValueError('Please specify the directory for target masks (relative to the subject folder).')
-
-    target_path = os.path.join(target_dir, hemisphere)
-
-    if data is not None:
-        data = os.path.join(target_dir, hemisphere, data)
+def check_prediction_params(masks, seed=None, structure=None, tracts=None, 
+                 tracts_list=None, data=None, atlas=None, out=None, model=None, 
+                 data_type=None, hemisphere=None, spatial=True):
+    """
+    Validate and process input parameters for tract analysis. (single subject)
     
-    return mask, mask_dir, target_path, data
-
-def predict_mode(subject, mask, mask_dir=None, structure=None, target_dir=None, target_list=None, 
-                 data=None, atlas=None, out=None, model=None, spatial=True, 
-                 data_type=None, hemisphere=None, verbose=True):
-
-    if verbose:
-        logging.basicConfig(level=logging.INFO)
-
-    logging.info('Predict mode on.\n')
-    subjects = get_subjects(subject)
-    hemisphere = return_hemisphere(hemisphere)
-    mask, mask_dir, target_path, data = check_params(mask, mask_dir, target_dir, data, hemisphere)
-
-    # create output name
+    Returns:
+    dict: A dictionary containing the validated and processed parameters.
+    """
+    params = locals()
+    params['masks'] = check_values(masks)
+    # check params and return path objects
     if out is None: 
         raise ValueError('Please specify the output name.')
+    params['out'] = [out_path / hemisphere / 'probmap.nii.gz' 
+                     for out_path in check_values(out)]
 
     if atlas == 'default':
         if structure is None:
-            raise ValueError('Please specify the structure (--structure, -s) if using the default atlases.')
-        # create default atlas path
-        atlas = os.path.join(mask_dir, hemisphere, f'{structure}.nii.gz')
+            raise ValueError(
+                'When using a custom model, either set `atlas=None`, '
+                'or specify your own group-average probability map.'
+            )
+        params['atlas'] = [mask_path / hemisphere / f'{structure}.nii.gz'
+                           for mask_path in params['masks']]
+    elif atlas is not None:
+        params['atlas'] = check_values(atlas)
+
+    if tracts is not None:
+        params['tracts'] = [tract_path / hemisphere
+                            for tract_path in check_values(tracts)]
+    
+    if seed is None:
+        if structure is None:
+            raise ValueError(
+                'When using a custom model, please specify the seed mask.'
+            )
+        params['seed'] = [mask_path / hemisphere / f'{SEEDS_DICT[structure]}.nii.gz' 
+                          for mask_path in params['masks']]
+    else:
+        params['seed'] = check_values(seed)
+
+    if data is None:
+        if tracts is None:
+            raise ValueError(
+                'Please specify path to the tract-density maps '
+                'or use the presaved data.'
+            )
+        if tracts_list is None and structure is None:
+            raise ValueError(
+                'When using a custom model, '
+                'you should either specify the list containing the targets.'
+                'or use pre-saved data.'
+            )
+    else:
+        params['data'] = check_values(data)
 
     if model is None:
-        # error checking
-        if structure is None:
-            raise ValueError('When using the default model, you must specify the structure.')
-        if data_type is None:
-            raise ValueError('When using the default model, you must specify the data_type.')
-
-        logging.info(f'Using the default model for {structure} on {data_type}.')
-        
-        # load the default model.
-        model_dir = os.path.join(PKG_PATH, 'resources', 'models', structure, data_type, hemisphere)
-        model_name = 'spatial_model' if spatial else 'model'
-        model_name = f'{model_name}_with_prior.pth' if atlas is not None else f'{model_name}.pth'
-        model = os.path.join(model_dir, model_name)
-
-        if not os.path.exists(model):
-            raise ValueError(f'We dont have a pretrained model for {structure} {data_type}.')
-
-        target_list_fname = os.path.join(PKG_PATH, 'resources', 'data', 
-                                         f'{structure}_default_target_list.txt')
-        # checking whether or not to use default
-        if data is None and target_list is None:
-            # load default target list
-            logging.info('Using default target list.')
-            
-            with open(target_list_fname, 'r') as f:
-                target_list = [line.strip() for line in f]
-
+        params['model'] = _handle_default_model(
+            structure=structure, data_type=data_type, hemisphere=hemisphere, 
+            spatial=spatial, atlas=atlas
+        )
+        # checking whether or not to use default target list
+        if params['data'] is None and params['tracts_list'] is None:
+            params['tracts_list'] = (RESOURCES_PATH / 'data' / 
+                                     f'{structure}_default_target_list.txt')
+            logging.info('Using default tract list.')
+        # the user is using the default model but not the default target list
         else:
-            logging.info(f'Please make sure your data or target_list matches the order of the default target list {target_list_fname}.')
-
+            # either tracts_list is none (when using presaved data) 
+            # or a specified list
+            logging.info('Please make sure your data or tracts_list matches ' + \
+                         f'the order of the default target list.')
     else:
-        logging.info(f'Using the model stored in {model}.')
+        logging.info(f'Using the custom model stored in {params["model"]}.')
+        params['model'] = Path(params['model']).resolve()
+    return params
 
-        # check errors. either specify --data, or specify both --target_path and --target_list
-        if data is None:
-            if target_path is None:
-                raise ValueError("Please specify --target_path if you didn't specify --data")
-            if target_list is None:
-                raise ValueError("Please specify --target_list if you didn't specify --data when you are not using the default model.")        
+def _handle_default_model(structure, data_type, hemisphere, spatial, atlas):
+    """handle the case when a default model is used"""
+    if structure is None or data_type is None:
+        raise ValueError('When using the default model, you must specify '
+                         'both the structure to be localised and the data_type.')
 
-    data = [
-        load_features(
-            subject=subject, 
-            mask_name=mask, 
-            target_path=target_path, 
-            target_list=target_list, 
-            data=data, 
-            atlas=atlas,
-            power=[2, 1, 0.5]
-        ) 
-        for subject in subjects
-    ]
+    logging.info(f'Using the default model for localising {structure} on {data_type}...')
 
-    predictions = apply_pretrained_model(data, model, spatial_model=spatial)
+    model_name = (
+        f'{"spatial_model" if spatial else "model"}_with_prior.pth' 
+        if atlas is not None 
+        else f'{"spatial_model" if spatial else "model"}.pth'
+    )
+    model_path = (RESOURCES_PATH / 'models' / structure / data_type / 
+             hemisphere / model_name)
+
+    if not model_path.exists():
+        raise ValueError(f"We haven't implemented a pretrained model for {structure} on {data_type}.")
+
+    return model_path
+
+def predict_mode(masks, seed=None, structure=None, tracts=None, 
+                 tracts_list=None, data=None, atlas=None, out=None, model=None, 
+                 spatial=True, data_type=None, hemisphere=None, verbose=True):
+    """Main function for prediction mode."""
+    if verbose:
+        logging.basicConfig(level=logging.INFO)
+
+    logging.info('Predict mode on. \n')
+    ## subjects = check_values(subject)
+    # check params
+    params = check_prediction_params(
+        masks=masks, seed=seed, structure=structure, tracts=tracts, 
+        tracts_list=tracts_list, data=data, atlas=atlas, out=out, model=model, 
+        data_type=data_type, hemisphere=hemisphere, spatial=spatial
+    )
+
+    # if data is not specified, load the data from the target list
+    if params['data'] is None:
+        with open(params['tracts_list'], 'r') as f:
+            target_list = [line.strip() for line in f]
+
+    data = load_features(
+        masks=params['masks'], 
+        tracts=params['tracts'], 
+        target_list=target_list, 
+        data=params['data'], 
+        atlas=params['atlas'],
+        power=[2, 1, 0.5]
+    )
+
+    prediction = apply_pretrained_model(data, params['model'], spatial_model=spatial)
 
     logging.info('Localise done. Now saving results...')
     # save to nii files
-    for subject, prediction in zip(subjects, predictions):
-        save_nifti(prediction.detach().numpy()[:, -1], os.path.join(subject, mask), os.path.join(subject, out))
+    save_nifti(prediction.detach().numpy()[:, -1], params['seed'], params['out'])
 
     logging.info('Done.')
 
-    return predictions
+    return prediction
 
-
-def train_mode(subject, mask, label, mask_dir=None, target_dir=None,
-               target_list=None, data=None, atlas=None, out_model=None, 
-               spatial=True, hemisphere=None, epochs=100, verbose=True):
+def check_training_params(masks, labels, tracts=None, tracts_list=None, 
+                          seed=None, data=None, atlas=None, out_model=None, 
+                          hemisphere=None, epochs=100):
+    """Validate and process input parameters for training mode."""
+    params = locals()
+    params['hemisphere'] = return_hemisphere(hemisphere)
+    params['masks'] = Path(masks).resolve()
+    params['labels'] = Path(labels).resolve()
     
+    if seed is None:
+        raise ValueError('Please specify the seed mask '
+                         'when training a custom model.')
+    params['seed'] = Path(seed).resolve()
+    
+    if out_model is None:
+        raise ValueError('Please specify the output model name.')
+    params['out_model'] = Path(out_model)
+    
+    if tracts is not None:
+        params['tracts'] = Path(tracts) / params['hemisphere']
+    
+    if data is None:
+        if tracts is None or tracts_list is None:
+            raise ValueError(
+                'Please specify path to the tract-density maps '
+                'and the list of targetsor use the presaved data.'
+            )
+    else:
+        params['data'] = Path(data).resolve()
+
+    if atlas is not None:
+        params['atlas'] = Path(atlas).resolve()
+    return params
+    
+def train_mode(masks, labels, tracts=None, tracts_list=None, 
+               seed=None, data=None, atlas=None, out_model=None, 
+               spatial=True, hemisphere=None, epochs=100, verbose=True):
+    """Main function for training mode."""
     if verbose:
         logging.basicConfig(level=logging.INFO)
 
     logging.info('Training mode on.\n')
-    subjects = get_subjects(subject)
-    hemisphere = return_hemisphere(hemisphere)
-    mask, mask_dir, target_path, data = check_params(mask, mask_dir, target_dir, data, hemisphere)
+    params = check_training_params(
+        masks=masks, labels=labels, tracts=tracts, tracts_list=tracts_list, 
+        seed=seed, data=data, atlas=atlas, out_model=out_model, 
+        hemisphere=hemisphere, epochs=epochs
+    )
 
-    if data is None and target_list is None:
-        raise ValueError("Please specify --target_list if you didn't specify --data.")
-    
-    data = [
-        load_data(
-            subject=subject, 
-            mask_name=mask, 
-            label_name=label,
-            target_path=target_path, 
-            target_list=target_list, 
-            data=data, 
-            atlas=atlas
-        ) 
-        for subject in subjects
-    ]
+    data = load_data(
+        masks=params['masks'], 
+        labels=params['labels'],
+        tracts=params['tracts'], 
+        tracts_list=tracts_list, 
+        data=params['data'], 
+        atlas=params['atlas']
+    )
     
     dataloader = ShuffledDataLoader(data)
     model = train_without_val(dataloader, n_epochs=epochs, 
                               spatial_model=spatial, 
-                              model_save_path=out_model)
+                              model_save_path=params['out_model'])
     
     return model
