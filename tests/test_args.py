@@ -91,7 +91,8 @@ class TestParseArguments:
             '--tracts', '/path/to/subject/tracts',
             '--structure', 'vim',
             '--data-type', 'singleshell',  # Fixed: was data_type
-            '--out', 'output.nii.gz'
+            '--out', 'output.nii.gz',
+            '--atlas'
         ]):
             args = parse_arguments()
 
@@ -104,7 +105,7 @@ class TestParseArguments:
             assert args.structure == 'vim'
             assert args.data_type == 'singleshell'
             assert args.hemisphere is None
-            assert args.atlas == 'default'
+            assert args.atlas == 'vim'
             assert args.model is None
 
     def test_predict_mode_custom_model(self):
@@ -272,7 +273,8 @@ class TestParseArguments:
                 '--model', '/model.pth',
                 '--seed', '/seed.nii.gz',
                 '--out', '/output',
-                '--data', '/data.npy'
+                '--data', '/data.npy',
+                '--atlas'
             ]):
                 parse_arguments()
 
@@ -312,7 +314,8 @@ class TestParseArguments:
             '--seed', '/seed.nii.gz',
             '--out-model', 'model.pth',
             '--data', '/data.npy',
-            '--structure', 'vim'
+            '--structure', 'vim',
+            '--atlas'
         ]):
             args = parse_arguments()
             # In training mode, if atlas is 'default', it gets set to structure
@@ -425,9 +428,10 @@ class TestValidateArgs:
                     '--model', '/model.pth',
                     '--seed', '/seed.nii.gz',
                     '--out', '/output',
-                    '--data', '/data.npy'
+                    '--data', '/data.npy',
+                    '--atlas'
                 ]):
                     parse_arguments()
         
         error_output = f.getvalue()
-        assert 'Custom models require explicit --atlas' in error_output
+        assert 'Custom models require --atlas path.' in error_output

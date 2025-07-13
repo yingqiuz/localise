@@ -83,7 +83,7 @@ def parse_arguments():
     )
 
     common_group.add_argument(
-        '--atlas', default='default',
+        '--atlas', nargs='?', const='default', default=None,
         help=textwrap.dedent("""
             Path to the atlas (group-average probability map) of the structure.
             Will use the default map if --structure is specified.
@@ -178,10 +178,6 @@ def _validate_args(p, args):
         if not args.out_model:
             p.error('Training mode requires --out-model.')
 
-        # Set atlas to structure name if using default
-        if args.atlas == 'default':
-            args.atlas = args.structure
-
     if args.predict:
         if not args.out:
             p.error('Prediction mode requires --out directory')
@@ -199,4 +195,11 @@ def _validate_args(p, args):
             if not args.tracts_list and not args.data:
                 p.error('Custom models require --tracts-list or --data.')
             if args.atlas == 'default':
-                p.error('Custom models require explicit --atlas.')
+                p.error('Custom models require --atlas path.')
+
+    # Set atlas to structure name if using default
+    if args.atlas == 'default':
+        if not args.structure:
+            p.error('Specify --structure if you want to use atlas as an additional feature.')
+        else:
+            args.atlas = args.structure
