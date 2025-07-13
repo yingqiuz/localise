@@ -10,9 +10,9 @@ Usage() {
     echo ""
     echo "Usage:"
     echo ""
-    echo "create_tracts -bpx <bedpostX_dir> -out <output_dir> -masks <masks_dir> -str <str_name>"
-    echo "create_tracts -bpx <bedpostX_dir> -out <output_dir> -masks <masks_dir> -str <str_name> -warp <ref2diff> <diff2ref> -ref <refimage> -gpu"
-    echo "create_tracts -help"
+    echo "create_tracts --bpx <bedpostX_dir> --out <output_dir> --masks <masks_dir> --structure <str_name>"
+    echo "create_tracts --bpx <bedpostX_dir> --out <output_dir> --masks <masks_dir> --structure <str_name> --warp <ref2diff> <diff2ref> --ref <refimage> --gpu"
+    echo "create_tracts --help"
     echo ""
     echo ""
     echo "Example: "
@@ -81,10 +81,10 @@ ptx_opts=""
 ### parse arguments
 while [ -n "$1" ]; do
   case "$1" in
-    -help)
+    --help)
     Usage
     ;;
-    -gpu)
+    --gpu)
     prog="probtrackx2_gpu"
     ;;
     --ref=*)
