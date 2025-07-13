@@ -21,6 +21,12 @@ def get_resources_path():
         current_file = Path(__file__).resolve()
         # Go up one level to the package root, then into 'resources'
         return current_file.parent.parent / 'resources'
+    
+
+def get_absolute_path(file_path):
+    """Get absolute path of a file."""
+    return str(Path(file_path).resolve())
+
 
 def save_nifti(data, mask_file, output_file):
     """
@@ -99,9 +105,40 @@ def save_nifti_4D(data, mask_file, output_file):
     # Save the NIfTI image
     nib.save(output_nifti, output_file)
 
+
 def run_command(cmd):
     try:
         subprocess.run(cmd, check=True)
         print(f"Command {' '.join(cmd)} executed successfully.")
     except subprocess.CalledProcessError:
         print(f"Error executing command: {' '.join(cmd)}")
+        
+        
+def check_fsl_environment():
+    """Check if FSL is properly set up."""
+    fsl_dir = os.environ.get('FSLDIR')
+    if not fsl_dir:
+        raise EnvironmentError("Environment variable FSLDIR does not exist. Please set up FSLDIR.")
+    return fsl_dir
+
+
+def run_fsl_command(command, check=True):
+    """Run an FSL command and return the result."""
+    try:
+        result = subprocess.run(command, check=check, capture_output=True, text=True)
+        return result
+    except subprocess.CalledProcessError as e:
+        print(f"Error running command: {' '.join(command)}")
+        print(f"Return code: {e.returncode}")
+        print(f"Error output: {e.stderr}")
+        raise
+
+
+def check_fsl_sub_queues():
+    """Check if FSL has queue system available."""
+    try:
+        result = subprocess.run(['fsl_sub', '--has_queues'], 
+                              capture_output=True, text=True, check=True)
+        return result.stdout.strip() == "Yes"
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
