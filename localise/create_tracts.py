@@ -12,6 +12,7 @@ Written by Ying-Qiu Zheng (Python rewrite)
 import argparse
 import sys
 import textwrap
+import shlex
 from pathlib import Path
 from localise.utils import (
     get_absolute_path,
@@ -150,7 +151,7 @@ def build_probtrackx_command(fsl_dir, prog, seed, samples, brain_mask, out_dir,
     # Transformations
     if warp and len(warp) >= 2:
         cmd.extend(['--xfm', warp[0]])
-        cmd.extend(['--invwarp', warp[1]])
+        cmd.extend(['--invxfm', warp[1]])
         
     if ref:
         cmd.extend(['--seedref', ref])
@@ -169,7 +170,7 @@ def build_probtrackx_command(fsl_dir, prog, seed, samples, brain_mask, out_dir,
     # Override with custom options if provided
     if ptx_opts and Path(ptx_opts).exists():
         with open(ptx_opts, 'r') as f:
-            custom_opts = f.read().strip().split()
+            custom_opts = shlex.split(f.read().strip())
             cmd.extend(custom_opts)
     
     return cmd
