@@ -135,7 +135,7 @@ class FlattenedCRFBatch:
     def construct_kernel(self, X, adj, gamma):
         """Construct symmetric kernels."""
         if gamma.ndim > 0:
-            return [self.construct_kernel(X, adj, g) for g in gamma]
+            return np.stack([self.construct_kernel(X, adj, g) for g in gamma])
         
         gamma_val = float(gamma)
         
@@ -199,7 +199,7 @@ class FlattenedCRFBatchTensor:
     def construct_kernel(self, X, adj, gamma):
         """Construct symmetric sparse tensors."""
         if gamma.dim() > 0:
-            return [self.construct_kernel(X, adj, g) for g in gamma]
+            return torch.stack([self.construct_kernel(X, adj, g) for g in gamma])
         
         gamma_val = gamma.item()
         

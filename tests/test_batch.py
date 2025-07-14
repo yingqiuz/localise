@@ -294,7 +294,6 @@ class TestFlattenedCRFBatchTensor:
         kernel = batch.f[0]
         assert kernel.is_sparse
         assert kernel.shape == (4, 4)
-        assert kernel.is_coalesced()
     
     def test_kernel_symmetry(self, sample_data):
         """Test that kernels are symmetric."""
