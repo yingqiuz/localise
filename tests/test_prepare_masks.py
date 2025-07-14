@@ -291,14 +291,17 @@ class TestMainFunction:
     
     def test_create_masks_missing_files(self):
         """Test mask creation with missing input files."""
-        with pytest.raises(FileNotFoundError):
-            create_masks(
-                ref="/nonexistent/ref.nii.gz",
-                warp="/nonexistent/warp.nii.gz",
-                out="/tmp",
-                aparc="/nonexistent/aparc.nii.gz",
-                structure="vim"
-            )
+        with patch('localise.prepare_masks.check_fsl_environment') as mock_check:
+            mock_check.return_value = '/fake/fsl/dir'  # Mock FSL directory
+            
+            with pytest.raises(FileNotFoundError):
+                create_masks(
+                    ref="/nonexistent/ref.nii.gz",
+                    warp="/nonexistent/warp.nii.gz",
+                    out="/tmp",
+                    aparc="/nonexistent/aparc.nii.gz",
+                    structure="vim"
+                )
     
     def test_create_masks_unsupported_structure(self):
         """Test mask creation with unsupported structure."""
