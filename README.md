@@ -1,4 +1,4 @@
-# localise
+# LOCALISE
 
 [![Build Status](https://git.fmrib.ox.ac.uk/yqzheng1/python-localise/badges/main/pipeline.svg)](https://git.fmrib.ox.ac.uk/yqzheng1/python-localise)
 [![Documentation Status](https://img.shields.io/badge/docs-dev-blue.svg)](https://open.win.ox.ac.uk/pages/yqzheng1/python-localise/)
