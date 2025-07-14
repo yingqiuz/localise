@@ -86,8 +86,8 @@ def get_adj_sparse_kdt(mask):
         for neighbour in neighbours:
             # Fixed: use proper distance bound for 26-connectivity
             # Distance 1.0 only finds face neighbors, need sqrt(3) ≈ 1.73 for corners
-            d, i = tree.query(neighbour, k=1, distance_upper_bound=1.8)
-            if d != np.inf and 0 <= i < n:  # if neighbour was found
+            d, i = tree.query(neighbour, k=1, distance_upper_bound=0.1)
+            if d < 0.1 and 0 <= i < n:  # if neighbour was found
                 inds.append((v, i))
     
     if len(inds) == 0:
@@ -127,17 +127,17 @@ class FlattenedCRFBatch:
             self.gamma = np.array([0.0])
         elif isinstance(gamma, (int, float)):
             self.gamma = np.array([float(gamma)])
-        else:
+        else: #or numpy arrays, lists, etc.
             self.gamma = np.array(gamma, dtype=np.float32)
             
         self.f = self.construct_kernel(self.X, self.adj, self.gamma)
 
     def construct_kernel(self, X, adj, gamma):
         """Construct symmetric kernels."""
-        if gamma.size > 1:
-            return [self.construct_kernel(X, adj, np.array([g])) for g in gamma]
+        if gamma.ndim > 0:
+            return [self.construct_kernel(X, adj, g) for g in gamma]
         
-        gamma_val = float(gamma.item())
+        gamma_val = float(gamma)
         
         if len(adj.inds1) == 0:
             # No connections - return empty sparse matrix
@@ -196,11 +196,10 @@ class FlattenedCRFBatchTensor:
     
         self.f = self.construct_kernel(self.X, self.adj, self.gamma)
 
-class FlattenedCRFBatchTensor:
     def construct_kernel(self, X, adj, gamma):
         """Construct symmetric sparse tensors."""
-        if gamma.numel() > 1:
-            return [self.construct_kernel(X, adj, g.unsqueeze(0)) for g in gamma]
+        if gamma.dim() > 0:
+            return [self.construct_kernel(X, adj, g) for g in gamma]
         
         gamma_val = gamma.item()
         
