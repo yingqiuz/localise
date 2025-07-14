@@ -1,167 +1,205 @@
-import os
-import argparse, textwrap
+import argparse
+import textwrap
 
 
 def parse_arguments():
-    p = argparse.ArgumentParser(description="Localise")
-    
-    # Train or Predict
-    p.add_argument('--train', action='store_true', help='Train the model')
-    p.add_argument('--predict', action='store_true', help='Predict with the model')
+    """Parse command line arguments for the localise tool."""
+    p = argparse.ArgumentParser(
+        description=textwrap.dedent("""
+            Localise - A tool for localising brain structures using connectivity-based features.
 
+            This tool can train models to localise specific brain structures (like VIM, LGN) 
+            using diffusion MRI tractography data, or use pre-trained models for prediction.
+            It supports both training new models and making predictions on new subjects.
+        """).strip(),
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    
+    # Mode selection
+    mode_group = p.add_mutually_exclusive_group(required=True)
+    mode_group.add_argument(
+        '--train', action='store_true', 
+        help='Train the model to localise a structure.'
+    )
+    mode_group.add_argument(
+        '--predict', action='store_true', 
+        help='Localise a structure with the model.'
+    )
+
+    # common arguments
+    common_group = p.add_argument_group('Common options')
     predict_group = p.add_argument_group('Prediction mode')
     train_group = p.add_argument_group('Training mode')
     
     # shared arguments  
-    p.add_argument('--subject', '-s', required=True, type=str, 
-                   dest='subject', help=textwrap.dedent('''\
-                              Path to the subject directory, 
-                              e.g., /path/to/subj001, or a txt file containing
-                              the paths to subject folders. The txt file should look like
-                              /path/to/subj001
-                              /path/to/subj002
-                              ...
-                              '''))
-
-    p.add_argument('--seed', '-x', required=True, type=str, dest='seed', 
-                   help=textwrap.dedent('''\
-                          The binary seed mask (doesn't need to include the path). 
-                          This script assumes that the mask can be found under 
-                          the folder of anatomical masks (--mask_dir),
-                          For example, if the subject folder is /path/to/subject001,
-                          then the binary mask(s) should be stored under /path/to/subject001/roi/left 
-                          or /path/to/subject001/roi/right, depending on the hemisphere.
-                          '''))
-
-    p.add_argument('--hemisphere', '-c', required=True, type=str, dest='hemisphere', 
-                   help='Hemisphere of the structure to be localised. Can be left or right.')
+    common_group.add_argument(
+        '--subject', required=True, type=str, 
+        help='Path to the subject directory or a txt file with subject paths.'
+    )
     
-    p.add_argument('--mask_dir', '-i', required=True, type=str, dest='mask_dir', 
-                   help=textwrap.dedent('''\
-                          Path to the folder that contains anatomical masks, 
-                          relative to the subject folder.
-                          For example, if the subject folder is /path/to/subject001,
-                          and the path to the folder is /path/to/subject001/roi,
-                          you should feed in --mask_dir=roi.
-                          '''))
-
-    p.add_argument('--target_dir', '-p', required=True, type=str, dest='target_dir', 
-                   help=textwrap.dedent('''\
-                          Path to the folder that contains connectivity features, 
-                          relative to the subject folder.
-                          For example, if the subject folder is /path/to/subject001,
-                          and the path to the folder is /path/to/subject001/stremlines,
-                          you should feed in --target_dir=streamlines.
-                          '''))
-
-    p.add_argument('--target_list', '-l', required=False, type=str, dest='target_list', 
-                          help=textwrap.dedent('''\
-                          A txt file that contains streamline distribution files, 
-                          The txt file should look like
-                          seeds_to_target1.nii.gz
-                          seeds_to_target2.nii.gz
-                          ...
-                          '''))
-
-    p.add_argument('--data', '-d', required=False, type=str, dest='data', 
-                          help=textwrap.dedent('''\
-                          The *.npy file of connectivity features (doesn't need to include the path).
-                          This script assumes that the file can be found under the folder 
-                          containing connectivity features (--target_dir).
-                          For example, if the subject folder is /path/to/subject001,
-                          and the folder of connectivity features is /path/to/subject001/streamlines,
-                          then the file should be stored under /path/to/subject001/streamlines/left/features.npy or 
-                          /path/to/subject001/streamlines/right/features.npy, depending on the hemisphere.  
-                          /path/to/subject001/stremlines/left/features.npy,
-                          you should feed in --data=streamlines/left/features.npy.
-                          '''))
-
-    p.add_argument('--atlas', '-a', required=False, type=str, dest='atlas', 
-                          help=textwrap.dedent('''\
-                          Path to the atlas (group-average proability map) of the structure to be localised, relative to the subject folder.
-                          For example, if the subject folder is /path/to/subject001,
-                          and the path to the atlas file is 
-                          /path/to/subject001/atlases/atlas_left.nii.gz,
-                          you should feed in --atlas=atlases/atlas_left.nii.gz.
-                          This file must be in the same reference space as the tract-density maps.
-                          This serves as a prior features to contrain predictions to be not too far away from the group-average position.
-                          If you are under the predict mode and you have specified the structure to be localised (--structure, -r),
-                          you can simply set --atlas=default or -a default, and the script will automatically find the atlas for you.
-                          '''))
+    common_group.add_argument(
+        '--masks', required=True, type=str,
+        help=textwrap.dedent("""
+            Path to the folder that contains anatomical masks.
+            For example, the masks folder generated by create_masks in previous steps.
+        """).strip()
+    )
     
-    p.add_argument('--spatial', action='store_true', required=False,
-                   help='Use conditional random field (recommended).')
+    common_group.add_argument(
+        '--seed', help="Path to the binary seed mask."
+    )
+
+    common_group.add_argument(
+        '--tracts',
+        help=textwrap.dedent("""
+            Path to the folder that contains connectivity features.
+            For example, the tracts folder containing tract-density maps.
+        """).strip()
+    )
+
+    common_group.add_argument(
+        '--hemisphere', choices=['left', 'right'],
+        help='Hemisphere of the structure to be localised (default: both hemispheres)'
+    )
+
+    common_group.add_argument(
+        '--tracts-list',
+        help=textwrap.dedent("""
+            Text file containing a list of tract-density files.
+            The file should contain one filename per line (basename only):
+            
+            seeds_to_target1.nii.gz
+            seeds_to_target2.nii.gz
+            seeds_to_target3.nii.gz
+        """).strip()
+    )
+
+    common_group.add_argument(
+        '--data',
+        help=textwrap.dedent("""
+            Path to the presaved *.npy file of tract-density maps.
+            Must be specified if --tracts_list is not used.
+        """).strip()
+    )
+
+    common_group.add_argument(
+        '--atlas', nargs='?', const='default', default=None,
+        help=textwrap.dedent("""
+            Path to the atlas (group-average probability map) of the structure.
+            Will use the default map if --structure is specified.
+        """).strip()
+    )
     
-    p.add_argument('--verbose', '-v', action='store_true', required=False, 
-                   help="Increase output verbosity")
+    common_group.add_argument(
+        '--spatial', action='store_true',
+        help='Use conditional random field (recommended).'
+    )
+    
+    common_group.add_argument(
+        '--verbose', '-v', action='store_true', 
+        help="Increase output verbosity."
+    )
     
     # predict group
-    predict_group.add_argument('--structure', '-r', required=False, dest='structure', type=str,
-                               help=textwrap.dedent('''\
-                                Structure to be localised.
-                                if in the --predict mode, should be the name of the structure.
-                                '''))
+    predict_group.add_argument(
+        '--out', 
+        help=textwrap.dedent("""
+            Output filename for the localised structure (if in prediction mode), 
+            or the output filename for the trained model (if in training mode).
+        """).strip()
+    )                                                                                                                                                                     
+    
+    predict_group.add_argument(
+        '--structure',
+        help=textwrap.dedent("""
+            Structure to be localised in lower case, e.g., 'vim' or 'lgn'.
+            Required if --model is not specified.
+        """).strip()
+    )
 
-    predict_group.add_argument('--data_type', '-t', type=str, dest='data_type', required=False, 
-                               help=textwrap.dedent('''\
-                                    Data_type (or modality). can be singleshell, resting-state...
-                                    '''))
+    # TODO: more modalities to be implemented
+    predict_group.add_argument(
+        '--data-type',
+        help=textwrap.dedent("""
+            Data type (or modality). can be singleshell, diffusion, resting-state, etc...
+        """).strip()
+    )
     
-    predict_group.add_argument('--out', '-o', required=False, type=str, dest='out', 
-                                help=textwrap.dedent('''\
-                                Output filename for the localised structure. 
-                                '''))
-    
-    predict_group.add_argument('--model', '-m', required=False, type=str, dest='model', 
-                               help='Filename of the pre-trained model.')
+    predict_group.add_argument(
+        '--model',
+        help=textwrap.dedent("""
+            Path to the pre-trained model.
+            Required if --structure is not specified.
+        """).strip()
+    )
     
     # training mode args
-    train_group.add_argument('--label', '-b', required=False, type=str, dest='label', 
-                             help=textwrap.dedent('''\
-                                Path to the training labels of the structure (required for training).
-                                For example, if the subject folder is /path/to/subject001,
-                                and the path to the atlas file is 
-                                /path/to/subject001/roi/left/labels.nii.gz,
-                                you should feed in --label=roi/left/labels.nii.gz.
-                                This file must be in the same space as the connectivity features.
-                                '''))
-    train_group.add_argument('--out_model', required=False, type=str, dest='out_model', 
-                             help=textwrap.dedent('''\
-                             Output filename of the trained model.
-                             '''))
-    train_group.add_argument('--epochs', '-e', required=False, type=int, dest='epochs', 
-                             default=100,
-                             help='Number of epochs for training.')
+    train_group.add_argument(
+        '--out-model',
+        help=textwrap.dedent("""
+            Path to save the trained model.
+        """).strip()
+    )
+
+    train_group.add_argument(
+        '--labels',
+        help=textwrap.dedent("""
+            Path to the training labels of the structure (required for training).
+            Must be in the same space as the connectivity features.
+        """).strip()
+    )
+
+    train_group.add_argument(
+        '--epochs', type=int, default=100,
+        help=textwrap.dedent("""
+            Number of epochs for training (default: %(default)s).
+        """).strip()
+    )
 
     args = p.parse_args()
-
-    if args.predict == args.train:
-        p.error('Exactly one of --predict or --train must be provided.')
-
-    if args.predict and args.out is None:
-        p.error("Please specify the output filename.")
-        
-    if args.train and args.out_model is None:
-        p.error('Please specify the filename for the trained model.')
-        
-    if args.train and args.label is None:
-        p.error('Please specify the training labels.')
-
-    if args.train:
-        if args.atlas == 'default':
-            p.error('Please specify the atlas (group-average proability map) for training.')
-        # under training mode, either specify the target list or the presaved data
-        if args.data is None and args.target_list is None:
-            p.error('Please specify the connectivity features or the target list for training.')
-
-    if args.predict:
-        if args.atlas == 'default' and args.structure is None:
-            p.error('Please specify the atlas (group-average proability map) for prediction.')
-
-        if args.structure is None and args.model is None:
-            p.error('Please specify the structure to be localised or the pre-trained model for prediction.')
-
-        if args.model is None and args.data_type is None:
-            p.error('When using the default model, you must specify the data_type.')
+    _validate_args(p, args)
 
     return args
+
+
+def _validate_args(p, args):
+    """Validate argument combinations and requirements."""
+
+    # at least one of the two should be specified
+    if not args.tracts and not args.data:
+        p.error("Please specify either --tracts or --data for connectivity features.")
+
+    if args.train:
+        # under training mode, default not using atlas
+        if not args.labels:
+            p.error('Training mode requires --labels.')
+        if not args.seed:
+            p.error('Training mode requires --seed.')
+        if not args.out_model:
+            p.error('Training mode requires --out-model.')
+
+    if args.predict:
+        if not args.out:
+            p.error('Prediction mode requires --out directory')
+            
+        # using default models
+        if not args.model:
+            if not args.structure:
+                p.error('Please specify either --structure or --model.')
+            if not args.data_type:
+                p.error('Default models require --data-type.')
+                
+        else:
+            if not args.seed:
+                p.error('Custom models require --seed.')
+            if not args.tracts_list and not args.data:
+                p.error('Custom models require --tracts-list or --data.')
+            if args.atlas == 'default':
+                p.error('Custom models require --atlas path.')
+
+    # Set atlas to structure name if using default
+    if args.atlas == 'default':
+        if not args.structure:
+            p.error('Specify --structure if you want to use atlas as an additional feature.')
+        else:
+            args.atlas = args.structure

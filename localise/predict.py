@@ -2,55 +2,58 @@ import torch
 from torch.nn import Linear
 from localise.forward import FlexibleClassifier, MLP
 import logging
+from typing import Iterable, Tuple, Union
 
-
-def apply_pretrained_model(data, model_save_path, model="Linear", spatial_model=True):
+def apply_pretrained_model(
+    data: Iterable, 
+    model_save_path: str, 
+    model: Union[str, torch.nn.Module] = "Linear", 
+    spatial: bool = True
+) -> list:
     """
-    Function to load a pre-trained PyTorch model and apply it to new data.
+    Load a pre-trained PyTorch model and apply it to new data.
 
-    Parameters:
-    data (Iterables): Iterable of tuples 
-        containing the new data, (FlattenedCRFBatchTensor, torch.tensor)
-    model_save_path (str): Path where the trained model is saved
-    model (str, optional): String representing the type of model to use. 
-        Options: "Linear", "MLP", or PyTorch model class. Default: "Linear"
-    spatial_model (bool, optional): If True, use spatial model. Default: True
+    Args:
+        data: Iterable of tuples containing the new data (FlattenedCRFBatchTensor, torch.tensor).
+        model_save_path: Path where the trained model is saved.
+        model: Type of model to use. Options: "Linear", "MLP", or PyTorch model class. Default: "Linear".
+        spatial: If True, use spatial model. Default: True.
+
+    Returns:
+        list: Predictions for the input data.
     """
 
     # get dimensions
-    X = data[0]
-    n_features = X.X.shape[1]
-    n_classes = X.K
-    n_kernels = X.f.shape[0]
+    X = next(iter(data))
+    n_features, n_classes, n_kernels = X.X.shape[1], X.K, X.f.shape[0]
+
+    model_class = {
+        "Linear": lambda: Linear(n_features, n_classes),
+        "MLP": lambda: MLP(n_features, 2, n_classes),
+    }.get(model, lambda: model)
 
     # Define a model
-    if model == "Linear":
-        m = FlexibleClassifier(Linear(n_features, n_classes), n_classes=n_classes, 
-                                          n_kernels=n_kernels, is_crf=spatial_model)
-    elif model == "MLP":
-        m = FlexibleClassifier(MLP(n_features, 2, n_classes), n_classes=n_classes, 
-                                       n_kernels=n_kernels, is_crf=spatial_model)
-    else:
-        m = FlexibleClassifier(model, n_classes=n_classes, 
-                                   n_kernels=n_kernels, is_crf=spatial_model)
+    m = FlexibleClassifier(
+        model_class(),
+        n_classes=n_classes,
+        n_kernels=n_kernels,
+        is_crf=spatial
+    )
 
     # Load the saved model parameters
-    m.load_state_dict(torch.load(model_save_path), strict=False)
+    m.load_state_dict(
+        torch.load(model_save_path, weights_only=True), 
+        strict=False
+    )
     
     # Ensure model is in evaluation mode
     m.eval()
     
     # Now we can use the model for prediction on the new data
-    predictions = []
     with torch.no_grad():
-        for X in data:
-            pred = m(X)
-            predictions.append(pred)
+        return [m(X) for X in data]
 
-    return predictions
-
-
-def apply_model(data, model):
+def apply_model(data: Iterable, model: torch.nn.Module) -> list:
     """_summary_
 
     Parameters:
@@ -62,10 +65,5 @@ def apply_model(data, model):
         predictions: list
     """
     model.eval()
-    predictions = []
     with torch.no_grad():
-        for X in data:
-            pred = model(X)
-            predictions.append(pred)
-
-    return predictions
+        return [model(X) for X in data]

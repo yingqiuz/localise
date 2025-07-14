@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "localise"
+dynamic = ["version"]
+description = "A Python package for localisation"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "MIT"}
+authors = [
+    {name = "Ying-Qiu Zheng", email = "ying-qiu.zheng@ndcn.ox.ac.uk"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "numpy",
+    "torch>=2.0.0",
+    "joblib",
+    "nibabel",
+    "scipy",
+    "pytest",
+    "argparse",
+    "fslpy",
+    "typing",
+]
+
+[project.urls]
+Homepage = "https://github.com/yingqiuz/localise"
+"Bug Tracker" = "https://github.com/yingqiuz/localise/issues"
+
+[project.scripts]
+localise = "localise.cli:main"
+create_masks = "localise.cli:create_masks"
+create_tracts = "localise.cli:create_tracts"
+connectivity_driven = "localise.cli:connectivity_driven"
+
+[tool.setuptools]
+packages = ["localise"]
+
+[tool.setuptools_scm]
+write_to = "localise/_version.py"
+
+[tool.pytest.ini_options]
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py37']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+line_length = 88

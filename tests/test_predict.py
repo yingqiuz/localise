@@ -35,7 +35,7 @@ def test_apply_pretrained_model():
     predictions = apply_pretrained_model(
         [X for (X, y) in batches], 
         os.path.join(f'{path_to_data}', 'models', 'tmp_model.pth'),
-        spatial_model=False
+        spatial=False
         )
     for prediction, batch in zip(predictions, batches):
         assert prediction.shape == batch[1].shape
