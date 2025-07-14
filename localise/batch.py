@@ -1,3 +1,10 @@
+"""
+Spatial adjacency and CRF batch construction for neuroimaging.
+
+This module creates spatial neighborhood information and smoothness kernels
+for Conditional Random Field (CRF) processing of brain voxel data.
+"""
+
 import numpy as np
 from itertools import product
 from scipy.spatial import cKDTree
@@ -6,212 +13,221 @@ import torch
 
 
 class Adjacency:
+    """
+    Stores spatial adjacency information for brain voxels.
+    
+    Args:
+        inds1: Source voxel indices for each edge
+        inds2: Target voxel indices for each edge  
+        n: Total number of voxels
+    """
     def __init__(self, inds1, inds2, n):
-        self.inds1 = inds1
-        self.inds2 = inds2
-        self.n = n
+        self.inds1 = np.array(inds1)
+        self.inds2 = np.array(inds2)
+        self.n = int(n)
+        
+    def __repr__(self):
+        return f"Adjacency(n_voxels={self.n}, n_edges={len(self.inds1)})"
+
 
 def get_adj_sparse(mask):
-    # Get the indices where mask is not zero
+    """
+    Find spatial neighbors for all non-zero voxels in a 3D brain mask.
+    Fixed version of your original function - now O(n) instead of O(n²).
+    """
+    # Get coordinates of all brain voxels
     index = np.argwhere(mask != 0)
     n = len(index)
+    
+    if n == 0:
+        return [], [], 0
 
     # 26 neighbourhood system
     neighbour_offsets = np.array(list(product([-1, 0, 1], repeat=3)))
-    neighbour_offsets = neighbour_offsets[~np.all(neighbour_offsets == 0, axis=1)]  # exclude the center point (0, 0, 0)
+    neighbour_offsets = neighbour_offsets[~np.all(neighbour_offsets == 0, axis=1)]
 
+    # Create efficient lookup: coordinate -> voxel index
+    coord_to_idx = {tuple(coord): idx for idx, coord in enumerate(index)}
+    
     inds = []
     for v in range(n):
         neighbours = index[v] + neighbour_offsets
         for neighbour in neighbours:
-            m = np.all(index == neighbour, axis=1)
-            inds += [(v, i) for i in np.where(m)[0]]
+            neighbour_tuple = tuple(neighbour)
+            if neighbour_tuple in coord_to_idx:
+                inds.append((v, coord_to_idx[neighbour_tuple]))
+    
+    if len(inds) == 0:
+        return [], [], n
     
     inds1, inds2 = zip(*inds)
     return inds1, inds2, n
+
 
 def get_adj_sparse_kdt(mask):
     """
-    This function generates indices of neighbors in a 3D grid for all non-zero elements of the input mask using a k-d tree.
-
-    It first identifies the indices of non-zero elements in the mask, then uses a k-d tree for efficient nearest neighbor search. 
-    The function generates a 26-point neighborhood around each point (excluding the point itself), and checks whether each 
-    of these neighbors is present in the k-d tree (i.e., whether it corresponds to a non-zero element of the mask).
-
-    Parameters
-    ----------
-    mask : ndarray
-        A 3D numpy array which acts as a mask. The function will only consider the points for which the corresponding 
-        mask value is non-zero.
-
-    Returns
-    -------
-    inds1 : tuple
-        A tuple of indices representing the first coordinate of the neighbor pairs.
-
-    inds2 : tuple
-        A tuple of indices representing the second coordinate of the neighbor pairs.
-
-    n : int
-        The number of non-zero elements in the mask.
-
-    Note
-    ----
-    The function assumes that the mask is a 3D array. If the mask has more or fewer dimensions, the function might 
-    not work as expected.
-
-    Also, the function does not check whether the mask contains only binary (0 or 1) values. If the mask contains 
-    other values, these will be treated as "non-zero", which might lead to unexpected results.
-
-    The function returns a sparse representation of the neighbor pairs, meaning that only the pairs for which both 
-    elements are non-zero in the mask are returned. If a full (dense) representation is needed, additional processing 
-    might be required.
+    Fixed version of your KDTree function with correct distance bounds.
     """
     # Get the indices where mask is not zero
     index = np.argwhere(mask != 0)
     n = len(index)
 
+    if n == 0:
+        return [], [], 0
+
     # 26 neighbourhood system
     neighbour_offsets = np.array(list(product([-1, 0, 1], repeat=3)))
-    neighbour_offsets = neighbour_offsets[~np.all(neighbour_offsets == 0, axis=1)]  # exclude the center point (0, 0, 0)
+    neighbour_offsets = neighbour_offsets[~np.all(neighbour_offsets == 0, axis=1)]
 
     inds = []
-    tree = cKDTree(index)  # create k-d tree
+    tree = cKDTree(index)
     for v in range(n):
         neighbours = index[v] + neighbour_offsets
         for neighbour in neighbours:
-            # query the k-d tree for the neighbour
-            d, i = tree.query(neighbour, k=1, distance_upper_bound=1)
-            if d != np.inf:  # if neighbour was found
+            # Fixed: use proper distance bound for 26-connectivity
+            # Distance 1.0 only finds face neighbors, need sqrt(3) ≈ 1.73 for corners
+            d, i = tree.query(neighbour, k=1, distance_upper_bound=0.1)
+            if d < 0.1 and 0 <= i < n:  # if neighbour was found
                 inds.append((v, i))
+    
+    if len(inds) == 0:
+        return [], [], n
     
     inds1, inds2 = zip(*inds)
     return inds1, inds2, n
 
+
 class FlattenedCRFBatch:
     """
-    This class represents a batch for Conditional Random Fields (CRF) using numpy and scipy. It calculates the kernel of the input data.
-
-    Attributes:
-        K (int): Number of CRFs in the batch.
-        X (numpy.array): Input data.
-        adj (Adjacency): Adjacency information for the input data.
-        n (int): Number of samples in the input data.
-        d (int): Number of features in the input data.
-        gamma (numpy.array): Gamma parameter for the Radial Basis Function (RBF) kernel.
-        f (scipy.sparse.csr_matrix): Calculated kernel for the input data.
-
-    Methods:
-        construct_kernel(X, adj, gamma): Constructs the kernel for the input data.
+    Creates spatial smoothness kernels for CRF processing using numpy/scipy.
+    Fixed version of your original class.
     """
-
+    
     def __init__(self, X, adj, K=2, gamma=None):
-        """
-        Initializes an instance of FlattenedCRFBatch.
-
-        Args:
-            X (numpy.array): Input data.
-            adj (Adjacency): Adjacency information for the input data.
-            K (int, optional): Number of CRFs in the batch. Defaults to 2.
-            gamma (numpy.array, optional): Gamma parameter for the Radial Basis Function (RBF) kernel. Defaults to a numpy array with value 0.
-        """
         self.K = K
         self.X = X
-        self.adj = adj
+    
+        # Handle different adjacency input types
+        if isinstance(adj, Adjacency):
+            self.adj = adj
+        elif isinstance(adj, (tuple, list)) and len(adj) == 3:
+            self.adj = Adjacency(adj[0], adj[1], adj[2])
+        else:
+            raise ValueError("adj must be Adjacency object or (inds1, inds2, n) tuple")
+        
         self.n = X.shape[0]
         self.d = X.shape[1]
-        self.gamma = gamma if gamma is not None else np.array([0])
-        if not isinstance(self.gamma, np.ndarray):
-            self.gamma = np.array([self.gamma], dtype=X.dtype)
+
+        # Validate dimensions
+        if self.n != self.adj.n:
+            raise ValueError(f"X has {self.n} samples but adjacency has {self.adj.n} voxels")
+
+        # Handle gamma
+        if gamma is None:
+            self.gamma = np.array([0.0])
+        elif isinstance(gamma, (int, float)):
+            self.gamma = np.array([float(gamma)])
+        else: #or numpy arrays, lists, etc.
+            self.gamma = np.array(gamma, dtype=np.float32)
+            
         self.f = self.construct_kernel(self.X, self.adj, self.gamma)
 
     def construct_kernel(self, X, adj, gamma):
-        """
-        Constructs the kernel for the input data.
-
-        Args:
-            X (numpy.array): Input data.
-            adj (Adjacency): Adjacency information for the input data.
-            gamma (numpy.array): Gamma parameter for the Radial Basis Function (RBF) kernel.
-
-        Returns:
-            scipy.sparse.csr_matrix: Kernel for the input data.
-        """
+        """Construct symmetric kernels."""
         if gamma.ndim > 0:
-            return [self.construct_kernel(X, adj, el) for el in gamma]
+            return np.stack([self.construct_kernel(X, adj, g) for g in gamma])
+        
+        gamma_val = float(gamma)
+        
+        if len(adj.inds1) == 0:
+            # No connections - return empty sparse matrix
+            return csr_matrix((adj.n, adj.n))
+        
+        if gamma_val == 0:
+            values = np.ones(len(adj.inds1))
         else:
-            if gamma == 0:
-                return csr_matrix((np.ones(len(adj.inds1)), (adj.inds1, adj.inds2)), shape=(adj.n, adj.n))
-            else:
-                indices = [(i, j) for i, j in zip(adj.inds1, adj.inds2) if i < j]
-                inds1, inds2 = zip(*indices)
-                vals = [np.exp(-np.sum((X[i, :] - X[j, :]) ** 2, axis=1) * gamma) for i, j in indices]
-                f = csr_matrix((vals, (inds1, inds2)), shape=(adj.n, adj.n))
-                return f + f.T
+            feature_diffs = X[adj.inds1] - X[adj.inds2]
+            distances_sq = np.sum(feature_diffs ** 2, axis=1)
+            values = np.exp(-gamma_val * distances_sq)
+        
+        # Create symmetric matrix by including both directions explicitly
+        row_indices = np.concatenate([adj.inds1, adj.inds2])
+        col_indices = np.concatenate([adj.inds2, adj.inds1])
+        all_values = np.concatenate([values, values])
+        
+        kernel = csr_matrix((all_values, (row_indices, col_indices)), shape=(adj.n, adj.n))
+        return kernel
+
 
 class FlattenedCRFBatchTensor:
     """
-    This class creates a batch for Conditional Random Fields (CRF) and calculates its kernel for the given data.
-
-    Attributes:
-        K (int): Number of CRFs in the batch.
-        X (torch.Tensor): Input data.
-        adj (Adjacency): Adjacency information for the input data.
-        n (int): Number of samples in the input data.
-        d (int): Number of features in the input data.
-        gamma (torch.Tensor): Gamma parameter for the Radial Basis Function (RBF) kernel.
-        f (torch.sparse_coo_tensor): Calculated kernel for the input data.
-
-    Methods:
-        construct_kernel(X, adj, gamma): Constructs the kernel for the input data.
+    Fixed version of your tensor-based CRF batch.
     """
 
     def __init__(self, X, adj, K=2, gamma=None):
-        """
-        Initializes a new instance of FlattenedCRFBatchTorch.
-
-        Args:
-            X (torch.Tensor): Input data.
-            adj (Adjacency): Adjacency information for the input data.
-            K (int, optional): Number of CRFs in the batch. Defaults to 2.
-            gamma (torch.Tensor, optional): Gamma parameter for the Radial Basis Function (RBF) kernel. If not specified, it defaults to a tensor with value 0 on the same device and with the same datatype as X.
-        """
         self.K = K
         self.X = X
-        self.adj = adj
+    
+        # Handle adjacency input
+        if isinstance(adj, Adjacency):
+            self.adj = adj
+        elif isinstance(adj, (tuple, list)) and len(adj) == 3:
+            self.adj = Adjacency(adj[0], adj[1], adj[2])
+        else:
+            raise ValueError("adj must be Adjacency object or (inds1, inds2, n) tuple")
+            
         self.n = X.shape[0]
         self.d = X.shape[1]
-        self.gamma = gamma.to(X) if gamma is not None else torch.tensor([0], device=X.device, dtype=X.dtype)
-        if not isinstance(self.gamma, torch.Tensor):
-            self.gamma = torch.tensor([self.gamma], device=X.device, dtype=X.dtype)
+        
+        # Validate dimensions
+        if self.n != self.adj.n:
+            raise ValueError(f"X has {self.n} samples but adjacency has {self.adj.n} voxels")
+
+        # Handle gamma more carefully
+        if gamma is None:
+            self.gamma = torch.tensor([0.0], device=X.device, dtype=X.dtype)
+        elif isinstance(gamma, torch.Tensor):
+            self.gamma = gamma.to(device=X.device, dtype=X.dtype)
+        elif isinstance(gamma, (int, float)):
+            self.gamma = torch.tensor([float(gamma)], device=X.device, dtype=X.dtype)
+        else:
+            # Handle numpy arrays, lists, etc.
+            self.gamma = torch.tensor(gamma, device=X.device, dtype=X.dtype)
+    
         self.f = self.construct_kernel(self.X, self.adj, self.gamma)
 
     def construct_kernel(self, X, adj, gamma):
-        """
-        Constructs the kernel for the input data.
-
-        Args:
-            X (torch.Tensor): Input data.
-            adj (Adjacency): Adjacency information for the input data.
-            gamma (torch.Tensor): Gamma parameter for the Radial Basis Function (RBF) kernel.
-
-        Returns:
-            torch.sparse_coo_tensor: Kernel for the input data.
-        """
-        if type(gamma) is not float:
-            return torch.stack([self.construct_kernel(X, adj, el.item()) for el in gamma])
+        """Construct symmetric sparse tensors."""
+        if gamma.dim() > 0:
+            return torch.stack([self.construct_kernel(X, adj, g) for g in gamma])
+        
+        gamma_val = gamma.item()
+        
+        if len(adj.inds1) == 0:
+            # No connections - return empty sparse tensor
+            indices = torch.zeros((2, 0), device=X.device, dtype=torch.long)
+            values = torch.zeros(0, device=X.device, dtype=X.dtype)
+            return torch.sparse_coo_tensor(indices, values, (adj.n, adj.n), device=X.device)
+        
+        if gamma_val == 0:
+            values = torch.ones(len(adj.inds1), device=X.device, dtype=X.dtype)
         else:
-            indices = torch.tensor([adj.inds1, adj.inds2], device=X.device)
-            if gamma == 0:
-                values = torch.ones(len(adj.inds1), device=X.device, dtype=X.dtype)
-                size = adj.n, adj.n
-                return torch.sparse_coo_tensor(indices, values, size)
-            else:
-                #indices_mask = adj.inds1 < adj.inds2
-                #print(indices_mask)
-                #inds1 = torch.tensor(adj.inds1[indices_mask], device=X.device)
-                #inds2 = torch.tensor(adj.inds2[indices_mask], device=X.device)
-                vals = torch.exp(-torch.sum((X[adj.inds1, :] - X[adj.inds2, :]) ** 2, dim=1) * gamma)
-                #print(inds1)
-                f = torch.sparse_coo_tensor(indices, vals, (adj.n, adj.n))
-                return f #+ f.coalesce().t().coalesce()
+            feature_diffs = X[adj.inds1] - X[adj.inds2]
+            distances_sq = torch.sum(feature_diffs ** 2, dim=1)
+            values = torch.exp(-gamma_val * distances_sq)
+        
+        # Create tensors directly on correct device
+        row_indices = torch.cat([
+            torch.tensor(adj.inds1, device=X.device, dtype=torch.long),
+            torch.tensor(adj.inds2, device=X.device, dtype=torch.long)
+        ])
+        col_indices = torch.cat([
+            torch.tensor(adj.inds2, device=X.device, dtype=torch.long),
+            torch.tensor(adj.inds1, device=X.device, dtype=torch.long)
+        ])
+        all_values = torch.cat([values, values])
+        
+        indices = torch.stack([row_indices, col_indices])
+        kernel = torch.sparse_coo_tensor(indices, all_values, (adj.n, adj.n), device=X.device)
+        
+        return kernel.coalesce()
