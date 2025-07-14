@@ -142,3 +142,12 @@ def check_fsl_sub_queues():
         return result.stdout.strip() == "Yes"
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
+    
+
+def find_mask_file(base_path, extensions=['.nii.gz', '.nii']):
+    """Find a mask file with common extensions."""
+    for ext in extensions:
+        file_path = Path(str(base_path) + ext)
+        if file_path.exists():
+            return str(file_path)
+    return None

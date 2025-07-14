@@ -11,7 +11,8 @@ from localise.utils import (
     check_fsl_sub_queues,
     save_nifti,
     save_nifti_4D,
-    run_command
+    run_command,
+    find_mask_file
 )
 from pathlib import Path
 import nibabel as nib
@@ -140,3 +141,17 @@ def test_check_fsl_sub_queues_error():
     with patch('subprocess.run', side_effect=FileNotFoundError):
         result = check_fsl_sub_queues()
         assert result is False
+        
+
+def test_find_mask_file():
+    """Test mask file finding."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        test_file = Path(tmp_dir) / "test.nii.gz"
+        test_file.touch()
+        
+        result = find_mask_file(Path(tmp_dir) / "test")
+        assert result == str(test_file)
+        
+        # Test not found
+        result = find_mask_file(Path(tmp_dir) / "nonexistent")
+        assert result is None
