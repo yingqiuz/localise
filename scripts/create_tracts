@@ -17,7 +17,7 @@ Usage() {
     echo ""
     echo "Example: "
     echo ""
-    echo "create_tracts -masks subj001/masks -bpx subj001/dMRI.bedpostX -seed thalamus.nii.gz -out subj001"
+    echo "create_tracts --masks subj001/masks --bpx subj001/dMRI.bedpostX --seed thalamus.nii.gz --out subj001"
     echo ""
     echo ""
     echo "creates tracts for the specified seed, using fiber samples estimated via BedpostX"
@@ -25,20 +25,20 @@ Usage() {
     echo ""
     echo "Compulsory arguments:"
     echo ""
-    echo "-bpx <folder>                                       Path to bedpostx folder"
-    echo "-masks <folder>                                     Path to mask folder"
-    echo "-str <structure_name>                               Structure to be localised, e.g., vim, lgn, etc."
-    echo "-out <folder>                                       Path to output folder."
+    echo "--bpx <folder>                                       Path to bedpostx folder"
+    echo "--masks <folder>                                     Path to mask folder"
+    echo "--structure <structure_name>                         Structure to be localised. Supported: vim, lgn, etc."
+    echo "--out <folder>                                       Path to output folder."
     echo ""
     echo ""
     echo "Optional arguments:"
     echo ""
-    echo "-warp <ref2diff> <diff2ref>                         (Optional) Transformation matrix/field between the reference space (i.e., the space of the anatomical masks) and the diffusion space."
+    echo "--warp <ref2diff> <diff2ref>                         (Optional) Transformation matrix/field between the reference space (i.e., the space of the anatomical masks) and the diffusion space."
     echo "                                                               Necessary if the reference space is not the diffusion space."
-    echo "-ref <path>                                         (Optional) Path to reference image, usually in the individual T1 native space."
+    echo "--ref <path>                                         (Optional) Path to reference image, usually in the individual T1 native space."
     echo "                                                               Necessary if the reference space is not the diffusion space."
-    echo "-ptx_opts <options.txt>	                            (Optional) Pass extra probtrackx2 options as a text file to override defaults, e.g. --steplength=0.2 --distthresh=10"
-    echo "-gpu                                                (Optional) Use the GPU version of probtractx2."
+    echo "--ptx-opts <options.txt>	                           (Optional) Pass extra probtrackx2 options as a text file to override defaults, e.g. --steplength=0.2 --distthresh=10"
+    echo "--gpu                                                (Optional) Use the GPU version of probtractx2."
     echo ""
     exit 1
 }
@@ -141,6 +141,10 @@ while [ -n "$1" ]; do
     ;;
     --distthresh=*)
     distthresh="${arg#*=}"
+    shift
+    ;;
+    --ptx-opts=*)
+    ptx_opts="${arg#*=}"
     shift
     ;;
     --gpu)
