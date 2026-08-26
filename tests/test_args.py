@@ -139,7 +139,7 @@ class TestPredictParsing:
             '--masks', '/path/to/subject/masks',
             '--tracts', '/path/to/subject/tracts',
             '--structure', 'vim',
-            '--data-type', 'singleshell',
+            '--model', 'single32',
             '--out', 'output',
             '--atlas'
         ])
@@ -149,10 +149,9 @@ class TestPredictParsing:
         assert args.tracts == '/path/to/subject/tracts'
         assert args.out == 'output'
         assert args.structure == 'vim'
-        assert args.data_type == 'singleshell'
         assert args.hemisphere is None
         assert args.atlas == 'vim'
-        assert args.model is None
+        assert args.model == 'single32'
 
     def test_predict_custom_model(self):
         """Test prediction mode with custom model."""
@@ -180,7 +179,6 @@ class TestPredictParsing:
             '--masks', '/masks',
             '--tracts', '/tracts',
             '--structure', 'vim',
-            '--data-type', 'singleshell',
             '--out', 'output'
         ])
         assert args.hemisphere is None
@@ -229,17 +227,23 @@ class TestValidationErrors:
         # Missing out directory
         with pytest.raises(SystemExit):
             parse_args(['predict', '--masks', '/masks', '--structure', 'vim',
-                        '--data-type', 'singleshell', '--data', '/data.npy'])
+                        '--data', '/data.npy'])
 
         # Default model: missing structure
         with pytest.raises(SystemExit):
             parse_args(['predict', '--masks', '/masks', '--out', '/output',
-                        '--data-type', 'singleshell', '--data', '/data.npy'])
+                        '--data', '/data.npy'])
 
-        # Default model: missing data-type
-        with pytest.raises(SystemExit):
-            parse_args(['predict', '--masks', '/masks', '--structure', 'vim',
-                        '--out', '/output', '--data', '/data.npy'])
+        # No --model: the shipped default model is used at run time
+        args = parse_args(['predict', '--masks', '/masks', '--structure', 'vim',
+                           '--out', '/output', '--data', '/data.npy'])
+        assert args.model is None
+
+        # A shipped-model name is accepted without --seed; a path is custom
+        args = parse_args(['predict', '--masks', '/masks', '--structure', 'vim',
+                           '--model', '2mm', '--out', '/output',
+                           '--data', '/data.npy'])
+        assert args.model == '2mm'
 
         # Custom model: missing seed
         with pytest.raises(SystemExit):
@@ -256,7 +260,7 @@ class TestValidationErrors:
         # Missing masks and seed
         with pytest.raises(SystemExit):
             parse_args(['predict', '--structure', 'vim',
-                        '--data-type', 'singleshell', '--out', '/output',
+                        '--out', '/output',
                         '--data', '/data.npy'])
 
     def test_connectivity_features_validation(self):
@@ -330,3 +334,36 @@ class TestValidateArgs:
 
         # Check that atlas was modified
         assert args.atlas == 'vim'
+
+
+class TestCliEndToEnd:
+    """Run the predict subcommand through the real CLI entry point."""
+
+    def test_cli_predict_with_shipped_model(self, tmp_path):
+        import numpy as np
+        import nibabel as nib
+        from pathlib import Path
+        from localise.cli import main
+
+        seed = (Path(__file__).parent / 'test_data' / '100610' / 'roi' /
+                'left' / 'tha_small.nii.gz')
+        n_voxels = int((nib.load(str(seed)).get_fdata() > 0).sum())
+        data = tmp_path / 'features.npy'
+        np.save(data, np.random.default_rng(0)
+                .random((160, n_voxels)).astype('float32'))
+
+        out = tmp_path / 'out'
+        main(['predict', '--seed', str(seed), '--data', str(data),
+              '--structure', 'vim', '--spatial', '--hemisphere', 'left',
+              '--out', str(out)])
+
+        assert (out / 'left' / 'probmap.nii.gz').exists()
+
+    def test_cli_predict_with_missing_model_file(self, tmp_path, capsys):
+        from localise.cli import main
+
+        with pytest.raises(SystemExit):
+            main(['predict', '--seed', 'seed.nii.gz', '--data', 'd.npy',
+                  '--model', str(tmp_path / 'nope.pth'),
+                  '--hemisphere', 'left', '--out', str(tmp_path)])
+        assert 'does not exist' in capsys.readouterr().err

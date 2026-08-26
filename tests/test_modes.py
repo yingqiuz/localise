@@ -27,11 +27,11 @@ def test_check_prediction_params(tmp_path):
     tracts = tmp_path / 'tracts'
     structure = 'vim'
     out = tmp_path / 'out'
-    data_type = 'single32'
+    model_name = 'single32'
     hemisphere = 'left'
     params = check_prediction_params(
         masks=masks, structure=structure, tracts=tracts, 
-        out=out, data_type=data_type, hemisphere=hemisphere, 
+        out=out, model=model_name, hemisphere=hemisphere,
         spatial=True
     )
     assert params['masks'] == [tmp_path / 'masks' / hemisphere]
@@ -54,7 +54,7 @@ def test_check_prediction_params(tmp_path):
     out.write_text('sub1/out\nsub2/out')
     params = check_prediction_params(
         masks=masks, structure=structure, tracts=tracts, 
-        out=out, data_type=data_type, hemisphere=hemisphere, 
+        out=out, model=model_name, hemisphere=hemisphere,
         spatial=True
     )
     assert params['masks'] == [
@@ -67,17 +67,18 @@ def test_check_prediction_params(tmp_path):
         Path(f'sub1/out/{hemisphere}/probmap.nii.gz'), 
         Path(f'sub2/out/{hemisphere}/probmap.nii.gz')
     ]
-    assert params['model'] == (RESOURCES_PATH / 'models' / structure / data_type / 
+    assert params['model'] == (RESOURCES_PATH / 'models' / structure / model_name / 
                                hemisphere / 'spatial_model.pth')
     
     # other scenarios
     model = tmp_path / 'model.pth'
+    model.touch()
     seed = tmp_path / 'seeds.txt'
     seed.write_text('sub1/left/seeds.nii.gz\nsub2/left/seeds.nii.gz')
     tracts_list = tmp_path / 'tracts_list.txt'
     params = check_prediction_params(
         masks=masks, model=model, seed=seed, tracts=tracts, 
-        out=out, data_type=data_type, hemisphere=hemisphere, 
+        out=out, hemisphere=hemisphere,
         tracts_list=tracts_list, spatial=True
     )
     assert params['masks'] == [
@@ -99,8 +100,8 @@ def test_check_prediction_params(tmp_path):
     data.write_text('sub1/data.npy\nsub2/data.npy')
     params = check_prediction_params(
         masks=masks, data=data, model=model, seed=seed,
-        out=out, data_type=data_type, hemisphere=hemisphere, 
-        spatial=True, 
+        out=out, hemisphere=hemisphere,
+        spatial=True,
     )
     assert params['data'] == [Path('sub1/data.npy'), Path('sub2/data.npy')]
 
@@ -217,7 +218,7 @@ def test_check_prediction_params_detects_tracts_list(tmp_path):
 
     params = check_prediction_params(
         masks=masks, structure='vim', tracts=tracts, out=tmp_path / 'out',
-        data_type='single32', hemisphere='left', spatial=True
+        model='single32', hemisphere='left', spatial=True
     )
     assert params['tracts_list'] == detected
 
@@ -236,7 +237,7 @@ def test_predict_mode_with_shipped_default_model(tmp_path):
 
     out = tmp_path / 'out'
     predictions = predict_mode(masks=None, seed=str(seed), data=str(data),
-                               structure='vim', data_type='2mm', spatial=True,
+                               structure='vim', model='2mm', spatial=True,
                                out=str(out), hemisphere='left', verbose=False)
 
     assert len(predictions) == 1

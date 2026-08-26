@@ -3,7 +3,7 @@ from pathlib import Path
 from localise.load import load_data, load_features, ShuffledDataLoader
 from localise.train import train_without_val
 from localise.predict import apply_pretrained_model
-from localise.utils import save_nifti, get_resources_path
+from localise.utils import save_nifti, get_resources_path, is_model_path
 
 
 RESOURCES_PATH = get_resources_path()
@@ -11,6 +11,8 @@ SEEDS_DICT = {
     'vim': 'tha',
     'lgn': 'lgn_bin',
 }
+# the shipped model used when none is named; matches typical clinical DTI
+DEFAULT_MODEL = '2mm_single32'
 # powers applied to tract densities; shared by training and prediction so that
 # a model trained with this tool always matches the features built at predict time
 POWER = [2, 1, 0.5]
@@ -43,13 +45,17 @@ def return_hemisphere(hemisphere):
     )
 
 def check_prediction_params(
-    masks, seed=None, structure=None, tracts=None, 
-    tracts_list=None, data=None, atlas=None, out=None, 
-    model=None, data_type=None, hemisphere='left', spatial=True
+    masks, seed=None, structure=None, tracts=None,
+    tracts_list=None, data=None, atlas=None, out=None,
+    model=None, hemisphere='left', spatial=True
 ):
     """
     Validate and process input parameters for tract analysis. (single subject)
-    
+
+    `model` is either the name of a shipped pretrained model (e.g., '2mm',
+    '2mm_single32', 'single32'; defaults to DEFAULT_MODEL), or the path to a
+    custom trained model (*.pth).
+
     Returns:
     dict: A dictionary containing the validated and processed parameters.
     """
@@ -135,68 +141,79 @@ def check_prediction_params(
         params['data'] = check_values(data)
 
     if model is None:
+        model = DEFAULT_MODEL
+
+    if is_model_path(model):
+        # a custom trained model
+        model_path = Path(model).resolve()
+        if not model_path.exists():
+            raise ValueError(f'Model file {model} does not exist.')
+        logging.info(f'Using the custom model stored in {model_path}.')
+        params['model'] = model_path
+    else:
+        # the name of a shipped pretrained model
         params['model'] = _handle_default_model(
-            structure=structure, data_type=data_type, hemisphere=hemisphere, 
+            structure=structure, model_name=model, hemisphere=hemisphere,
             spatial=spatial, atlas=atlas
         )
         # checking whether or not to use default target list
         if None in params['data'] and params['tracts_list'] is None:
-            params['tracts_list'] = (RESOURCES_PATH / 'data' / 
+            params['tracts_list'] = (RESOURCES_PATH / 'data' /
                                      f'{structure}_default_target_list.txt')
             logging.info('Using default tract list.')
         # the user is using the default model but not the default target list
         else:
-            # either tracts_list is none (when using presaved data) 
+            # either tracts_list is none (when using presaved data)
             # or a specified list
             logging.info('Please make sure your data or tracts_list matches ' + \
                          f'the order of the default target list.')
-    else:
-        logging.info(f'Using the custom model stored in {params["model"]}.')
-        params['model'] = Path(params['model']).resolve()
     return params
 
-def _handle_default_model(structure, data_type, hemisphere, spatial, atlas):
-    """handle the case when a default model is used"""
-    if structure is None or data_type is None:
-        raise ValueError('When using the default model, you must specify '
-                         'both the structure to be localised and the data_type.')
+def _handle_default_model(structure, model_name, hemisphere, spatial, atlas):
+    """Resolve a shipped pretrained model by name."""
+    if structure is None:
+        raise ValueError('When using a shipped pretrained model, you must '
+                         'specify the structure to be localised.')
 
-    logging.info(f'Using the default model for localising {structure} on {data_type}...')
+    logging.info(f'Using the shipped model {model_name} for localising {structure}...')
 
-    model_name = (
-        f'{"spatial_model" if spatial else "model"}_with_prior.pth' 
-        if atlas is not None 
+    model_file = (
+        f'{"spatial_model" if spatial else "model"}_with_prior.pth'
+        if atlas is not None
         else f'{"spatial_model" if spatial else "model"}.pth'
     )
-    model_path = (RESOURCES_PATH / 'models' / structure / data_type /
-             hemisphere / model_name)
+    model_path = (RESOURCES_PATH / 'models' / structure / model_name /
+             hemisphere / model_file)
 
     if not model_path.exists():
         structure_dir = RESOURCES_PATH / 'models' / structure
         available = sorted(
             d.name for d in structure_dir.iterdir()
-            if (d / hemisphere / model_name).exists()
+            if (d / hemisphere / model_file).exists()
         ) if structure_dir.is_dir() else []
         hint = (
-            f"Available data types for {structure}: {', '.join(available)}."
+            f"Available models for {structure}: {', '.join(available)}."
             if available else
             f"No pretrained models are shipped for {structure}; "
             "train your own with `localise train` and pass it via --model."
         )
         raise ValueError(
-            f"No pretrained model for structure={structure} on data_type={data_type}. {hint}"
+            f"No shipped pretrained model named '{model_name}' for {structure}. {hint}"
         )
 
     return model_path
 
 def predict_mode(masks, seed=None, structure=None, tracts=None,
                  tracts_list=None, data=None, atlas=None, out=None, model=None,
-                 spatial=True, data_type=None, hemisphere=None, verbose=True):
+                 spatial=True, hemisphere=None, verbose=True):
     """Main function for prediction mode.
+
+    `model` is either the name of a shipped pretrained model (defaults to
+    DEFAULT_MODEL) or the path to a custom trained model (*.pth).
 
     If hemisphere is None, both hemispheres are localised (only possible with
     the standard masks/tracts folder layout; explicit seed, data, atlas, or
-    model paths are hemisphere-specific, so they require an explicit
+    custom model paths are hemisphere-specific, so they require an explicit
     hemisphere). Returns a list of per-subject predictions for a single
     hemisphere, or a dict {'left': [...], 'right': [...]} for both.
     """
@@ -206,7 +223,8 @@ def predict_mode(masks, seed=None, structure=None, tracts=None,
     logging.info('Predict mode on. \n')
     if hemisphere is None:
         hemisphere_specific = {
-            'seed': seed, 'data': data, 'model': model,
+            'seed': seed, 'data': data,
+            'model': model if is_model_path(model) else None,
             'atlas': None if atlas in (None, 'default') else atlas,
         }
         given = [name for name, value in hemisphere_specific.items()
@@ -225,7 +243,7 @@ def predict_mode(masks, seed=None, structure=None, tracts=None,
         params = check_prediction_params(
             masks=masks, seed=seed, structure=structure, tracts=tracts,
             tracts_list=tracts_list, data=data, atlas=atlas, out=out, model=model,
-            data_type=data_type, hemisphere=hemi, spatial=spatial
+            hemisphere=hemi, spatial=spatial
         )
 
         # if data is not specified, load the data from the target list

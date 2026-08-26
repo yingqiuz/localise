@@ -40,8 +40,7 @@ def _run_predict(args):
         masks=args.masks, seed=args.seed, structure=args.structure,
         tracts=args.tracts, tracts_list=args.tracts_list, data=args.data,
         atlas=args.atlas, out=args.out, model=args.model,
-        spatial=args.spatial, data_type=args.data_type,
-        hemisphere=args.hemisphere, verbose=args.verbose
+        spatial=args.spatial, hemisphere=args.hemisphere, verbose=args.verbose
     )
 
 
@@ -71,7 +70,7 @@ def build_parser():
                 localise prepare-tracts  --bpx sub01/dMRI.bedpostX --masks sub01/masks \\
                                          --structure vim --out sub01/streamlines
                 localise predict         --masks sub01/masks --tracts sub01/streamlines \\
-                                         --structure vim --data-type single32 --spatial --out sub01
+                                         --structure vim --spatial --out sub01
         """).strip(),
         formatter_class=argparse.RawTextHelpFormatter
     )

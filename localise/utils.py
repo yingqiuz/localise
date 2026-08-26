@@ -122,6 +122,15 @@ def check_fsl_environment():
     return fsl_dir
 
 
+def is_model_path(model):
+    """True if `model` refers to a model file (a custom trained model) rather
+    than the name of a shipped pretrained model."""
+    if model is None:
+        return False
+    s = str(model)
+    return s.endswith('.pth') or os.path.sep in s or Path(s).exists()
+
+
 def fsl_bin(tool):
     """Absolute path of an FSL executable ($FSLDIR/bin/<tool>), so that FSL
     commands work even when FSLDIR is set but not on PATH. Falls back to the

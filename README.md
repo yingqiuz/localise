@@ -35,8 +35,13 @@ localise prepare-tracts --bpx sub01/dMRI.bedpostX --masks sub01/masks \
 
 # 3. localise the structure with the pre-trained model (both hemispheres)
 localise predict --masks sub01/masks --tracts sub01/streamlines \
-                 --structure vim --data-type single32 --spatial --out sub01
+                 --structure vim --spatial --out sub01
 ```
+
+By default `predict` uses the model trained on 2mm single-shell (32-direction)
+data. `--model` selects a different one: either the name of a shipped model
+trained on another low-quality protocol (`--model 2mm`, `--model single32`),
+or the path to your own trained model (`--model my_model.pth`).
 
 The probability maps are saved as `sub01/left/probmap.nii.gz` and
 `sub01/right/probmap.nii.gz`. Add `--hemisphere left` (or `right`) to any
