@@ -12,7 +12,7 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fo
 
 ## Contributing
 
-We greatly appreciate contributions from the community! If you're interested in improving localise, there are many ways you can contribute.
+This toolbox is under active development. We are integrating more structures greatly appreciate contributions from the community! If you're interested in improving localise, there are many ways you can contribute.
 
 ### Reporting Issues
 
