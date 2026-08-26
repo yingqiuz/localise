@@ -122,6 +122,14 @@ def check_fsl_environment():
     return fsl_dir
 
 
+def fsl_bin(tool):
+    """Absolute path of an FSL executable ($FSLDIR/bin/<tool>), so that FSL
+    commands work even when FSLDIR is set but not on PATH. Falls back to the
+    bare tool name if FSLDIR is not set."""
+    fsl_dir = os.environ.get('FSLDIR')
+    return str(Path(fsl_dir) / 'bin' / tool) if fsl_dir else tool
+
+
 def run_fsl_command(command, check=True):
     """Run an FSL command and return the result."""
     try:

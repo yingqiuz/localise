@@ -13,7 +13,7 @@ Written by Ying-Qiu Zheng (Python rewrite)
 import argparse
 import sys
 from pathlib import Path
-from localise.utils import run_fsl_command, check_fsl_environment
+from localise.utils import run_fsl_command, check_fsl_environment, fsl_bin
 
 
 DESCRIPTION = (
@@ -79,11 +79,11 @@ def connectivity_driven(target1, target2, out, target3=None,
     for i, (target, t) in enumerate(zip(targets, thresholds), start=1):
         thresholded_map = out_dir / f"target{i}_thrP{t:g}"
         run_fsl_command([
-            'fslmaths', str(target), '-thrP', str(t), str(thresholded_map)
+            fsl_bin('fslmaths'), str(target), '-thrP', str(t), str(thresholded_map)
         ])
         thresholded.append(str(thresholded_map))
 
-    cmd = ['fslmaths', thresholded[0]]
+    cmd = [fsl_bin('fslmaths'), thresholded[0]]
     for thresholded_map in thresholded[1:]:
         cmd.extend(['-mul', thresholded_map])
     cmd.extend(['-thrP', str(thr), '-bin', str(out_path)])

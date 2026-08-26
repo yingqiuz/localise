@@ -6,6 +6,58 @@
 
 This library implements LOCALISE, a python toolbox developed to address the challenges associated with accurately targeting DBS targets on low-quality clinical-like dataset. This toolbox uses Image Quality Transfer techniques to transfer anatomical information from high-quality data to a wide range of connectivity features in low-quality data. The goal is to augment the inference on DBS targets localisation even with compromised data quality. We also have a [Julia implementation](https://git.fmrib.ox.ac.uk/yqzheng1/hqaugmentation.jl). For more details, please check our [research paper](https://link.springer.com/chapter/10.1007/978-3-031-43996-4_17).
 
+## Installation
+
+```bash
+pip install git+https://github.com/yingqiuz/localise.git
+```
+
+Requirements: [FSL](https://fsl.fmrib.ox.ac.uk/fsl/) (with `FSLDIR` set) for the
+`prepare-*` steps; PyTorch for training and prediction.
+
+## Usage
+
+The `localise` command covers the full pipeline. To localise a structure
+(e.g., VIM) for a subject you need a reference image (usually the T1),
+a FreeSurfer `aparc.a2009s+aseg` segmentation in that space, a warp field
+from MNI standard space to the reference space, and a bedpostX folder:
+
+```bash
+# 1. create anatomical masks in reference space (both hemispheres)
+localise prepare-masks --ref sub01/t1.nii.gz \
+                       --aparc sub01/aparc.a2009s+aseg.nii.gz \
+                       --warp sub01/std2native_warp.nii.gz \
+                       --structure vim --out sub01
+
+# 2. run probabilistic tractography (both hemispheres; add --gpu if available)
+localise prepare-tracts --bpx sub01/dMRI.bedpostX --masks sub01/masks \
+                        --structure vim --out sub01/streamlines
+
+# 3. localise the structure with the pre-trained model (both hemispheres)
+localise predict --masks sub01/masks --tracts sub01/streamlines \
+                 --structure vim --data-type single32 --spatial --out sub01
+```
+
+The probability maps are saved as `sub01/left/probmap.nii.gz` and
+`sub01/right/probmap.nii.gz`. Add `--hemisphere left` (or `right`) to any
+command to process a single hemisphere.
+
+You can also train your own model on subjects with high-quality labels and
+apply it (a model is trained per hemisphere):
+
+```bash
+localise train --seed seeds.txt --labels labels.txt --tracts tracts.txt \
+               --hemisphere left --spatial --out-model my_model.pth
+
+localise predict --seed sub01/roi/left/tha.nii.gz \
+                 --tracts sub01/streamlines --hemisphere left \
+                 --model my_model.pth --spatial --out sub01
+```
+
+where the txt files list one path per subject. Run `localise <subcommand> --help`
+for all options, including `localise connectivity-driven` for the classic
+thresholded-overlap approach.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) for details.

@@ -16,11 +16,12 @@ import sys
 import textwrap
 from pathlib import Path
 from localise.utils import (
-    get_resources_path, 
-    get_absolute_path, 
-    run_fsl_command, 
-    check_fsl_sub_queues, 
-    check_fsl_environment
+    get_resources_path,
+    get_absolute_path,
+    run_fsl_command,
+    check_fsl_sub_queues,
+    check_fsl_environment,
+    fsl_bin
 )
 
 
@@ -217,18 +218,18 @@ def process_aparc_file(aparc_path, ref_path, out_dir):
         
         # Register to reference space
         run_fsl_command([
-            "flirt", "-in", str(output_path), "-ref", ref_path,
+            fsl_bin("flirt"), "-in", str(output_path), "-ref", ref_path,
             "-out", str(output_path), "-applyxfm", "-usesqform",
             "-interp", "nearestneighbour"
         ])
-        
+
         return str(output_path)
-    
+
     elif aparc_file.suffix in ['.nii', '.gz']:
         # Register NII file to reference space
         output_path = out_dir / "masks" / aparc_basename
         run_fsl_command([
-            "flirt", "-in", str(aparc_path), "-ref", ref_path,
+            fsl_bin("flirt"), "-in", str(aparc_path), "-ref", ref_path,
             "-out", str(output_path), "-applyxfm", "-usesqform",
             "-interp", "nearestneighbour"
         ])
@@ -241,15 +242,26 @@ def process_aparc_file(aparc_path, ref_path, out_dir):
         )
 
 
-def execute_commands(commands_file, job_name, log_dir, dependency_job=None):
-    """Execute FSL commands either through queue system or directly."""
+def execute_commands(commands_file, job_name, log_dir, dependency_job=None,
+                     as_array=True):
+    """Execute FSL commands either through queue system or directly.
+
+    With as_array=True the commands file is submitted as a task array (one
+    task per line, run in parallel) - only valid when the lines are
+    independent. Use as_array=False for command files whose lines must run
+    sequentially: they are submitted as a single job running the whole file.
+    """
     has_queues = check_fsl_sub_queues()
-    
+
     if has_queues:
-        cmd = ['fsl_sub', '-N', job_name, '-n', '-l', str(log_dir), '-t', commands_file]
+        cmd = ['fsl_sub', '-N', job_name, '-n', '-l', str(log_dir)]
         if dependency_job:
             cmd.extend(['-j', dependency_job])
-        
+        if as_array:
+            cmd.extend(['-t', commands_file])
+        else:
+            cmd.extend(['bash', commands_file])
+
         result = run_fsl_command(cmd)
         return result.stdout.strip()  # Return job ID
     else:
@@ -325,11 +337,14 @@ def create_masks(ref, warp, out, aparc, structure, brainmask=None):
     )
     
     if scpct_commands_file:
+        # the SCPCT commands form a sequential chain (applywarp -> fslmaths),
+        # so they must run as a single job, not a parallel task array
         execute_commands(
             scpct_commands_file,
             "create_masks_scpct",
             out_dir / structure / "logs",
-            dependency_job=job_id
+            dependency_job=job_id,
+            as_array=False
         )
     
     print(f"Mask creation completed. Output directory: {out_dir}")

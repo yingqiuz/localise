@@ -18,7 +18,9 @@ from localise.utils import (
     get_absolute_path,
     run_fsl_command,
     check_fsl_environment,
-    find_mask_file
+    check_fsl_sub_queues,
+    find_mask_file,
+    fsl_bin
 )
 
 
@@ -130,9 +132,9 @@ def create_brain_mask_if_needed(bpx_dir):
     output_mask = str(brain_mask_path)
     
     run_fsl_command([
-        'fslmaths', str(mean_samples), '-thr', '0', '-bin', output_mask
+        fsl_bin('fslmaths'), str(mean_samples), '-thr', '0', '-bin', output_mask
     ])
-    
+
     return output_mask + '.nii.gz'
 
 
@@ -209,7 +211,29 @@ def build_probtrackx_command(fsl_dir, prog, seed, samples, brain_mask, out_dir,
     return cmd
 
 
-def create_tracts(bpx, masks, out, hemisphere, structure=None, warp=None, ref=None, 
+def execute_probtrackx(cmd, log_dir, job_name, gpu=False, dependency=None):
+    """Run probtrackx directly, or submit it via fsl_sub when queues exist.
+
+    Returns the job id when submitted to a queue, None when run locally.
+    """
+    if check_fsl_sub_queues():
+        log_path = Path(log_dir) / 'logs'
+        log_path.mkdir(parents=True, exist_ok=True)
+        sub_cmd = ['fsl_sub', '-N', job_name, '-l', str(log_path)]
+        if gpu:
+            sub_cmd.extend(['--coprocessor', 'cuda'])
+        if dependency:
+            sub_cmd.extend(['-j', dependency])
+        result = run_fsl_command(sub_cmd + cmd)
+        job_id = result.stdout.strip()
+        print(f"Submitted {job_name} to the queue (job {job_id}).")
+        return job_id
+
+    run_fsl_command(cmd)
+    return None
+
+
+def create_tracts(bpx, masks, out, hemisphere, structure=None, warp=None, ref=None,
                  ptx_opts=None, gpu=False, seed=None):
     """
     Main function to create tracts using probabilistic tractography.
@@ -299,9 +323,11 @@ def create_tracts(bpx, masks, out, hemisphere, structure=None, warp=None, ref=No
         ptx_opts=ptx_opts
     )
     
-    # Run first tractography
-    run_fsl_command(cmd)
-    
+    # Run first tractography (submitted via fsl_sub when queues are available)
+    job_id = execute_probtrackx(
+        cmd, hemi_out_dir, f"ptx_{structure or 'seed'}_{hemisphere}", gpu=gpu
+    )
+
     # Create SCPCT target list and run second tractography - only needed for vim
     if structure == 'vim':
         print("\n=== Running tractography for SCPCT targets ===")
@@ -331,8 +357,13 @@ def create_tracts(bpx, masks, out, hemisphere, structure=None, warp=None, ref=No
             ptx_opts=ptx_opts
         )
         
-        # Run second tractography
-        run_fsl_command(cmd_scpct)
+        # Run second tractography: both runs write into the same output
+        # directory (fdt_paths etc.), so on a queue the second job waits for
+        # the first via -j rather than running in parallel
+        execute_probtrackx(
+            cmd_scpct, hemi_out_dir, f"ptx_{structure}_scpct_{hemisphere}",
+            gpu=gpu, dependency=job_id
+        )
 
     # record the feature order for train/predict to pick up
     write_tracts_list(hemi_out_dir, structure=structure)

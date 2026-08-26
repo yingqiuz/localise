@@ -42,9 +42,6 @@ Homepage = "https://github.com/yingqiuz/localise"
 
 [project.scripts]
 localise = "localise.cli:main"
-create_masks = "localise.cli:create_masks"
-create_tracts = "localise.cli:create_tracts"
-connectivity_driven = "localise.cli:connectivity_driven"
 
 [tool.setuptools]
 packages = ["localise"]

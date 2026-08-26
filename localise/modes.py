@@ -89,6 +89,12 @@ def check_prediction_params(
                 'When using a custom model, either set `atlas=None`, '
                 'or specify your own group-average probability map.'
             )
+        if masks is None:
+            raise ValueError(
+                'The default atlas lives inside the masks folder '
+                '(masks/<hemisphere>/<structure>.nii.gz); please specify '
+                'the masks folder to use it.'
+            )
         params['atlas'] = [mask_path / f'{structure}.nii.gz'
                            for mask_path in params['masks']]
     elif atlas is not None:
@@ -162,11 +168,24 @@ def _handle_default_model(structure, data_type, hemisphere, spatial, atlas):
         if atlas is not None 
         else f'{"spatial_model" if spatial else "model"}.pth'
     )
-    model_path = (RESOURCES_PATH / 'models' / structure / data_type / 
+    model_path = (RESOURCES_PATH / 'models' / structure / data_type /
              hemisphere / model_name)
 
     if not model_path.exists():
-        raise ValueError(f"We haven't implemented a pretrained model for {structure} on {data_type}.")
+        structure_dir = RESOURCES_PATH / 'models' / structure
+        available = sorted(
+            d.name for d in structure_dir.iterdir()
+            if (d / hemisphere / model_name).exists()
+        ) if structure_dir.is_dir() else []
+        hint = (
+            f"Available data types for {structure}: {', '.join(available)}."
+            if available else
+            f"No pretrained models are shipped for {structure}; "
+            "train your own with `localise train` and pass it via --model."
+        )
+        raise ValueError(
+            f"No pretrained model for structure={structure} on data_type={data_type}. {hint}"
+        )
 
     return model_path
 

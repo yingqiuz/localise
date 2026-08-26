@@ -95,7 +95,8 @@ def add_predict_arguments(p):
     p.add_argument(
         '--data-type',
         help=textwrap.dedent("""
-            Data type (or modality). can be singleshell, diffusion, resting-state, etc...
+            Acquisition protocol the pretrained model was trained for.
+            Shipped vim models: 2mm, 2mm_single32, single32.
         """).strip()
     )
 

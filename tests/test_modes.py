@@ -220,3 +220,34 @@ def test_check_prediction_params_detects_tracts_list(tmp_path):
         data_type='single32', hemisphere='left', spatial=True
     )
     assert params['tracts_list'] == detected
+
+
+def test_predict_mode_with_shipped_default_model(tmp_path):
+    # exercise the default-model path end to end: pre-saved features with the
+    # canonical 160 targets, the shipped vim 2mm spatial model, real output
+    import numpy as np
+    import nibabel as nib
+
+    seed = path_to_data / '100610' / 'roi' / 'left' / 'tha_small.nii.gz'
+    n_voxels = int((nib.load(str(seed)).get_fdata() > 0).sum())
+    rng = np.random.default_rng(0)
+    data = tmp_path / 'features.npy'
+    np.save(data, rng.random((160, n_voxels)).astype(np.float32))
+
+    out = tmp_path / 'out'
+    predictions = predict_mode(masks=None, seed=str(seed), data=str(data),
+                               structure='vim', data_type='2mm', spatial=True,
+                               out=str(out), hemisphere='left', verbose=False)
+
+    assert len(predictions) == 1
+    assert predictions[0].shape[0] == n_voxels
+    assert (out / 'left' / 'probmap.nii.gz').exists()
+
+
+def test_handle_default_model_missing(tmp_path):
+    # unknown data type: the error should list what is actually available
+    with pytest.raises(ValueError, match='2mm'):
+        _handle_default_model('vim', 'nonexistent', 'left', True, None)
+    # unshipped structure: the error should point at custom training
+    with pytest.raises(ValueError, match='train your own'):
+        _handle_default_model('lgn', 'single32', 'left', True, None)
