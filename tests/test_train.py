@@ -12,10 +12,9 @@ from localise.forward import FlexibleClassifier, MLP
 subjects=['100610', '100408', '100307']
 
 target_list = [os.path.split(f)[-1] for f in sorted(glob(f'{path_to_data}/100610/streamlines/left/seeds_to_*'))]
-batches = [load_data(subject=os.path.join(f'{path_to_data}',subject), 
-                      mask_name='roi/left/tha_small.nii.gz', 
-                      label_name='high-quality-labels/left/labels.nii.gz',
-                      target_path='streamlines/left', 
+batches = [load_data(seed=path_to_data / subject / 'roi/left/tha_small.nii.gz',
+                      labels=path_to_data / subject / 'high-quality-labels/left/labels.nii.gz',
+                      tracts=path_to_data / subject / 'streamlines/left',
                       target_list=target_list, power=[1, 2], gamma=[0, 0.1]) for subject in subjects]
 
 

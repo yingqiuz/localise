@@ -15,9 +15,8 @@ def test_flexibleclassifier():
     subject='100610'
     target_list = [os.path.split(f)[-1] for f in sorted(glob(f'{path_to_data}/'+subject+'/streamlines/left/seeds_to_*'))]
 
-    batch = load_features(subject=os.path.join(f'{path_to_data}',subject), 
-                          mask_name='roi/left/tha_small.nii.gz', 
-                          target_path='streamlines/left', 
+    batch = load_features(seed=path_to_data / subject / 'roi/left/tha_small.nii.gz',
+                          tracts=path_to_data / subject / 'streamlines/left',
                           target_list=target_list, power=[1, 2], gamma=[0, 0.1])
     
     model = FlexibleClassifier(torch.nn.Linear(150, 2), is_crf=True, n_kernels=2, n_classes=2)

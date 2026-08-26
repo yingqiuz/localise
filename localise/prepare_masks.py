@@ -335,22 +335,20 @@ def create_masks(ref, warp, out, aparc, structure, brainmask=None):
     print(f"Mask creation completed. Output directory: {out_dir}")
 
 
-def parse_arguments():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Create anatomical masks in reference space for tractography",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent("""
-            Example usage:
-                create_masks --ref subj001/t1.nii.gz --out subj001
-                             --aparc subj001/aparc.a2009s+aseg.nii.gz
-                             --warp subj001/std2str_warp.nii.gz
-                             --structure vim
-            
-            This will create necessary masks for localising vim in the reference space (t1.nii.gz).
-        """)
-    )
-    
+DESCRIPTION = "Create anatomical masks in reference space for tractography"
+EPILOG = textwrap.dedent("""
+    Example usage:
+        localise prepare-masks --ref subj001/t1.nii.gz --out subj001
+                               --aparc subj001/aparc.a2009s+aseg.nii.gz
+                               --warp subj001/std2str_warp.nii.gz
+                               --structure vim
+
+    This will create necessary masks for localising vim in the reference space (t1.nii.gz).
+""")
+
+
+def add_arguments(parser):
+    """Add prepare-masks arguments to an argparse parser."""
     # Required arguments
     required = parser.add_argument_group('required arguments')
     required.add_argument(
@@ -379,22 +377,38 @@ def parse_arguments():
         '--brainmask',
         help='Path to binary brain mask in the reference space'
     )
-    
+
+    return parser
+
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description=DESCRIPTION,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=EPILOG
+    )
+    add_arguments(parser)
     return parser.parse_args()
 
 
+def run(args):
+    """Run mask preparation from parsed arguments."""
+    create_masks(
+        ref=args.ref,
+        warp=args.warp,
+        out=args.out,
+        aparc=args.aparc,
+        structure=args.structure,
+        brainmask=args.brainmask
+    )
+
+
 def main():
-    """Main entry point."""    
+    """Main entry point."""
     try:
         args = parse_arguments()
-        create_masks(
-            ref=args.ref,
-            warp=args.warp,
-            out=args.out,
-            aparc=args.aparc,
-            structure=args.structure,
-            brainmask=args.brainmask
-        )
+        run(args)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
