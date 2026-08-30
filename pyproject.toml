@@ -46,6 +46,9 @@ localise = "localise.cli:main"
 [tool.setuptools]
 packages = ["localise"]
 
+[tool.setuptools.package-data]
+localise = ["resources/**/*"]
+
 [tool.setuptools_scm]
 write_to = "localise/_version.py"
 
