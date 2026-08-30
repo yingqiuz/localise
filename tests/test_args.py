@@ -112,8 +112,8 @@ class TestTrainParsing:
             '--structure', 'vim',
             '--atlas'
         ])
-        # if atlas is 'default', it gets set to structure
-        assert args.atlas == 'vim'
+        # atlas stays 'default'; modes resolves it via the masks folder
+        assert args.atlas == 'default'
 
     def test_atlas_explicit_in_training(self):
         """Test explicit atlas in training mode (doesn't get overridden)."""
@@ -150,7 +150,7 @@ class TestPredictParsing:
         assert args.out == 'output'
         assert args.structure == 'vim'
         assert args.hemisphere is None
-        assert args.atlas == 'vim'
+        assert args.atlas == 'default'
         assert args.model == 'single32'
 
     def test_predict_custom_model(self):
@@ -328,12 +328,13 @@ class TestValidateArgs:
         args.out_model = 'model.pth'
         args.atlas = 'default'
         args.structure = 'vim'
+        args.masks = '/masks'
 
         # Should not raise any errors
         validate_train(parser, args)
 
-        # Check that atlas was modified
-        assert args.atlas == 'vim'
+        # atlas stays 'default'; modes resolves it via the masks folder
+        assert args.atlas == 'default'
 
 
 class TestCliEndToEnd:

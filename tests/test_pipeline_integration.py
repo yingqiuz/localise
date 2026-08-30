@@ -1,11 +1,12 @@
-"""End-to-end integration tests for the prepare pipeline, without FSL.
+"""End-to-end integration tests for the pipeline, without FSL.
 
-A fake FSLDIR is populated with stub executables that create the output files
-their real counterparts would produce. prepare-masks and prepare-tracts are
-then run for real (no mocks), exercising command-file generation, $FSLDIR
-expansion, local execution via bash, fsl_sub queue submission, and - most
-importantly - the contract that every file listed in the generated
-tracts_list.txt is actually produced.
+A fake FSLDIR is populated with stub executables that create real NIfTI output
+files (copies of small templates) where their real counterparts would.
+prepare-masks and prepare-tracts are then run for real (no mocks), exercising
+command-file generation, $FSLDIR expansion, local execution via bash, fsl_sub
+queue submission, and the contract that every file listed in the generated
+tracts_list.txt is actually produced - which in turn lets `localise predict`
+run on the prepared outputs with a real shipped model.
 """
 
 import os
@@ -21,7 +22,7 @@ FSLMATHS_STUB = """#!/usr/bin/env bash
 out="${@: -1}"
 case "$out" in *.nii.gz) : ;; *) out="$out.nii.gz" ;; esac
 mkdir -p "$(dirname "$out")"
-echo fake > "$out"
+cp "__MASK__" "$out"
 """
 
 APPLYWARP_STUB = """#!/usr/bin/env bash
@@ -36,7 +37,7 @@ done
 [ -n "$out" ] || exit 1
 case "$out" in *.nii.gz) : ;; *) out="$out.nii.gz" ;; esac
 mkdir -p "$(dirname "$out")"
-echo fake > "$out"
+cp "__MASK__" "$out"
 """
 
 FLIRT_STUB = """#!/usr/bin/env bash
@@ -51,7 +52,7 @@ done
 [ -n "$out" ] || exit 1
 case "$out" in *.nii.gz) : ;; *) out="$out.nii.gz" ;; esac
 mkdir -p "$(dirname "$out")"
-echo fake > "$out"
+cp "__MASK__" "$out"
 """
 
 PROBTRACKX_STUB = """#!/usr/bin/env bash
@@ -71,9 +72,9 @@ for t in $(cat "$targets"); do
   name="$(basename "$t")"
   name="${name%.nii.gz}"
   name="${name%.nii}"
-  echo fake > "$dir/seeds_to_${name}.nii.gz"
+  cp "__DATA__" "$dir/seeds_to_${name}.nii.gz"
 done
-echo fake > "$dir/fdt_paths.nii.gz"
+cp "__DATA__" "$dir/fdt_paths.nii.gz"
 """
 
 FSL_SUB_STUB = """#!/usr/bin/env bash
@@ -99,26 +100,42 @@ echo "job_1234"
 """
 
 
-def _write_stub(path, content):
+def _write_stub(path, content, mask=None, data=None):
+    content = content.replace('__MASK__', str(mask or ''))
+    content = content.replace('__DATA__', str(data or ''))
     path.write_text(content)
     path.chmod(path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
 
 @pytest.fixture
 def fake_fsl(tmp_path, monkeypatch):
-    """A fake FSLDIR whose binaries create the files they would produce."""
+    """A fake FSLDIR whose binaries create real (template) NIfTI files."""
+    import numpy as np
+    import nibabel as nib
+
     fsldir = tmp_path / 'fakefsl'
     bindir = fsldir / 'bin'
     bindir.mkdir(parents=True)
     standard = fsldir / 'data' / 'standard'
     standard.mkdir(parents=True)
-    (standard / 'MNI152_T1_1mm_brain_mask.nii.gz').write_text('fake')
 
-    _write_stub(bindir / 'fslmaths', FSLMATHS_STUB)
-    _write_stub(bindir / 'applywarp', APPLYWARP_STUB)
-    _write_stub(bindir / 'flirt', FLIRT_STUB)
-    _write_stub(bindir / 'probtrackx2', PROBTRACKX_STUB)
-    _write_stub(bindir / 'probtrackx2_gpu', PROBTRACKX_STUB)
+    # small real volumes for the stubs to copy: an all-ones binary mask, and
+    # a random-valued map standing in for tract densities
+    mask_t = fsldir / 'template_mask.nii.gz'
+    data_t = fsldir / 'template_data.nii.gz'
+    affine = np.eye(4)
+    nib.save(nib.Nifti1Image(np.ones((5, 5, 5), dtype=np.float32), affine), mask_t)
+    rng = np.random.default_rng(0)
+    nib.save(nib.Nifti1Image(rng.random((5, 5, 5)).astype(np.float32) * 100, affine), data_t)
+
+    nib.save(nib.Nifti1Image(np.ones((5, 5, 5), dtype=np.float32), affine),
+             standard / 'MNI152_T1_1mm_brain_mask.nii.gz')
+
+    _write_stub(bindir / 'fslmaths', FSLMATHS_STUB, mask=mask_t)
+    _write_stub(bindir / 'applywarp', APPLYWARP_STUB, mask=mask_t)
+    _write_stub(bindir / 'flirt', FLIRT_STUB, mask=mask_t)
+    _write_stub(bindir / 'probtrackx2', PROBTRACKX_STUB, data=data_t)
+    _write_stub(bindir / 'probtrackx2_gpu', PROBTRACKX_STUB, data=data_t)
 
     monkeypatch.setenv('FSLDIR', str(fsldir))
     return fsldir
@@ -216,3 +233,30 @@ def test_prepare_pipeline_queue(fake_fsl, tmp_path, monkeypatch):
     assert len(ptx_jobs) == 4
     assert sum('-j' in e.split() for e in ptx_jobs) == 2
     assert all('--coprocessor' in e.split() for e in ptx_jobs)
+
+
+def test_full_pipeline_through_predict(fake_fsl, tmp_path, monkeypatch):
+    """The complete user journey: prepare-masks -> prepare-tracts ->
+    localise predict with the real shipped model, both hemispheres."""
+    import nibabel as nib
+    import numpy as np
+    from localise.cli import main
+
+    monkeypatch.setattr('localise.prepare_masks.check_fsl_sub_queues', lambda: False)
+    monkeypatch.setattr('localise.prepare_tracts.check_fsl_sub_queues', lambda: False)
+
+    sub = _make_subject(tmp_path)
+    _run_pipeline(sub)
+    _assert_pipeline_outputs(sub)
+
+    out = sub / 'localised'
+    main(['predict', '--masks', str(sub / 'masks'),
+          '--tracts', str(sub / 'streamlines'),
+          '--structure', 'vim', '--spatial', '--out', str(out)])
+
+    for hemi in ('left', 'right'):
+        probmap_file = out / hemi / 'probmap.nii.gz'
+        assert probmap_file.exists(), f'{hemi} probmap missing'
+        probmap = nib.load(str(probmap_file)).get_fdata()
+        assert probmap.shape == (5, 5, 5)
+        assert np.all((probmap >= 0) & (probmap <= 1))

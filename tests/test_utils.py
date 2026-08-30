@@ -23,7 +23,9 @@ path_to_data = Path(__file__).parent / 'test_data'
 def test_get_resources_path_ends_with_resources():
     assert get_resources_path().name == 'resources'
     assert get_resources_path().exists()
-    assert get_resources_path() == Path(__file__).parent.parent / 'resources'
+    # resources ship inside the package so that built wheels include them
+    import localise
+    assert get_resources_path() == Path(localise.__file__).parent / 'resources'
 
 
 def test_get_absolute_path():

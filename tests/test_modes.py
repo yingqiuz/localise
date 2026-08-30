@@ -252,3 +252,107 @@ def test_handle_default_model_missing(tmp_path):
     # unshipped structure: the error should point at custom training
     with pytest.raises(ValueError, match='train your own'):
         _handle_default_model('lgn', 'single32', 'left', True, None)
+
+
+def test_check_training_params_new_behaviours(tmp_path):
+    (tmp_path / 'masks').mkdir()
+    tracts = tmp_path / 'tracts'
+    (tracts / 'left').mkdir(parents=True)
+    (tracts / 'left' / 'tracts_list.txt').write_text('seeds_to_1.nii.gz\n')
+
+    params = check_training_params(
+        masks=tmp_path / 'masks', structure='vim',
+        labels=tmp_path / 'labels.nii.gz', tracts=tracts,
+        atlas='default', out_model=tmp_path / 'm.pth', hemisphere='left'
+    )
+    # seed derived from masks/<hemi>/<structure seed>
+    assert params['seed'] == [tmp_path / 'masks' / 'left' / 'tha.nii.gz']
+    # default atlas resolved inside the masks folder
+    assert params['atlas'] == [tmp_path / 'masks' / 'left' / 'vim.nii.gz']
+    # tracts_list.txt auto-detected next to the tract maps
+    assert params['tracts_list'] == tracts / 'left' / 'tracts_list.txt'
+
+
+def test_check_training_params_broadcasts_atlas(tmp_path):
+    seed = tmp_path / 'seeds.txt'
+    seed.write_text('sub1/seed.nii.gz\nsub2/seed.nii.gz\nsub3/seed.nii.gz')
+    labels = tmp_path / 'labels.txt'
+    labels.write_text('sub1/l.nii.gz\nsub2/l.nii.gz\nsub3/l.nii.gz')
+    (tmp_path / 'data.txt').write_text('sub1/d.npy\nsub2/d.npy\nsub3/d.npy')
+
+    params = check_training_params(
+        seed=seed, labels=labels, data=tmp_path / 'data.txt',
+        atlas=tmp_path / 'group_atlas.nii.gz',
+        out_model=tmp_path / 'm.pth', hemisphere='left'
+    )
+    # one group-average atlas serves all three subjects
+    assert params['atlas'] == [tmp_path / 'group_atlas.nii.gz'] * 3
+
+    # but a wrong count (2 atlases, 3 subjects) is still an error
+    two = tmp_path / 'atlases.txt'
+    two.write_text('a1.nii.gz\na2.nii.gz')
+    with pytest.raises(ValueError, match='atlas'):
+        check_training_params(
+            seed=seed, labels=labels, data=tmp_path / 'data.txt',
+            atlas=two, out_model=tmp_path / 'm.pth', hemisphere='left'
+        )
+
+
+def test_predict_mode_default_atlas_via_cli_string(tmp_path):
+    # the CLI passes the literal 'default'; it must resolve inside the masks
+    # folder, not be treated as a path
+    masks = tmp_path / 'masks'
+    tracts = tmp_path / 'tracts'
+    params = check_prediction_params(
+        masks=masks, structure='vim', tracts=tracts, out=tmp_path / 'out',
+        model='2mm', hemisphere='left', spatial=True, atlas='default'
+    )
+    assert params['atlas'] == [masks / 'left' / 'vim.nii.gz']
+    # with-prior model variant selected
+    assert params['model'].name == 'spatial_model_with_prior.pth'
+
+
+def test_spatial_mismatch_is_caught(tmp_path):
+    # a non-spatial model must not be silently used for spatial prediction
+    import numpy as np
+    import nibabel as nib
+    import torch
+    from localise.forward import FlexibleClassifier
+    from localise.predict import apply_pretrained_model
+    from localise.load import load_features
+
+    nonspatial = FlexibleClassifier(torch.nn.Linear(4, 2), is_crf=False)
+    model_path = tmp_path / 'nonspatial.pth'
+    torch.save(nonspatial.state_dict(), model_path)
+
+    seed = path_to_data / '100610' / 'roi' / 'left' / 'tha_small.nii.gz'
+    n_voxels = int((nib.load(str(seed)).get_fdata() > 0).sum())
+    data = tmp_path / 'f.npy'
+    np.save(data, np.random.default_rng(0).random((2, n_voxels)).astype('float32'))
+    batch = load_features(seed=seed, data=data, power=[1, 2])
+
+    with pytest.raises(ValueError, match='no CRF weights'):
+        apply_pretrained_model([batch], str(model_path), spatial=True)
+
+
+def test_feature_count_mismatch_is_caught(tmp_path):
+    # a clear error when the data provides a different feature count
+    import numpy as np
+    import nibabel as nib
+    import torch
+    from localise.forward import FlexibleClassifier
+    from localise.predict import apply_pretrained_model
+    from localise.load import load_features
+
+    m = FlexibleClassifier(torch.nn.Linear(6, 2), is_crf=True, n_kernels=1)
+    model_path = tmp_path / 'm6.pth'
+    torch.save(m.state_dict(), model_path)
+
+    seed = path_to_data / '100610' / 'roi' / 'left' / 'tha_small.nii.gz'
+    n_voxels = int((nib.load(str(seed)).get_fdata() > 0).sum())
+    data = tmp_path / 'f.npy'
+    np.save(data, np.random.default_rng(0).random((2, n_voxels)).astype('float32'))
+    batch = load_features(seed=seed, data=data, power=[1, 2])  # 4 features
+
+    with pytest.raises(ValueError, match='expects 6 features'):
+        apply_pretrained_model([batch], str(model_path), spatial=True)
