@@ -40,11 +40,35 @@ def apply_pretrained_model(
         is_crf=spatial
     )
 
+    state_dict = torch.load(model_save_path, weights_only=True)
+
+    # catch model/data mismatches up front with actionable errors:
+    # strict=False would silently skip the CRF weights on a spatial mismatch
+    if spatial and 'smooth_weight' not in state_dict:
+        raise ValueError(
+            f'{model_save_path} contains no CRF weights, but spatial '
+            'prediction was requested; drop the --spatial flag or use '
+            'a spatial model.'
+        )
+    if not spatial and 'smooth_weight' in state_dict:
+        # shipped non-spatial models carry leftover CRF params, so this is
+        # not necessarily an error - but flag a possibly forgotten --spatial
+        logging.warning(
+            f'{model_save_path} contains CRF weights that will be ignored; '
+            'if it was trained as a spatial model, add the --spatial flag.'
+        )
+    if 'layer.weight' in state_dict:
+        n_saved = state_dict['layer.weight'].shape[1]
+        if n_saved != n_features:
+            raise ValueError(
+                f'{model_save_path} expects {n_saved} features per voxel, '
+                f'but the data provides {n_features}. Check that the tract '
+                'list and the atlas/prior option match the ones used '
+                'to train the model.'
+            )
+
     # Load the saved model parameters
-    m.load_state_dict(
-        torch.load(model_save_path, weights_only=True), 
-        strict=False
-    )
+    m.load_state_dict(state_dict, strict=False)
     
     # Ensure model is in evaluation mode
     m.eval()

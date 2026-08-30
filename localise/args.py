@@ -133,12 +133,14 @@ def add_train_arguments(p):
 
 
 def _resolve_default_atlas(p, args):
-    """Resolve --atlas without a value to the structure's default map."""
+    """Check --atlas without a value; the modes layer resolves 'default' to
+    masks/<hemisphere>/<structure>.nii.gz at run time."""
     if args.atlas == 'default':
         if not args.structure:
             p.error('Specify --structure if you want to use atlas as an additional feature.')
-        else:
-            args.atlas = args.structure
+        if not args.masks:
+            p.error('The default atlas lives inside the masks folder; '
+                    'please specify --masks (or give an explicit --atlas path).')
 
 
 def validate_predict(p, args):
@@ -179,8 +181,9 @@ def validate_train(p, args):
 
     if not args.labels:
         p.error('Training requires --labels.')
-    if not args.seed:
-        p.error('Training requires --seed.')
+    if not args.seed and not (args.masks and args.structure):
+        p.error('Training requires --seed '
+                '(or --masks with --structure to derive it).')
     if not args.out_model:
         p.error('Training requires --out-model.')
 

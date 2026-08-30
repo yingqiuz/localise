@@ -16,11 +16,8 @@ def get_resources_path():
         # The application is frozen (packaged)
         return Path(sys._MEIPASS) / 'resources'
     else:
-        # The application is not frozen
-        # Get the directory of the current file (utils.py)
-        current_file = Path(__file__).resolve()
-        # Go up one level to the package root, then into 'resources'
-        return current_file.parent.parent / 'resources'
+        # resources ship inside the package as package data
+        return Path(__file__).resolve().parent / 'resources'
     
 
 def get_absolute_path(file_path):

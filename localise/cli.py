@@ -47,10 +47,11 @@ def _run_predict(args):
 def _run_train(args):
     from localise.modes import train_mode
     train_mode(
-        masks=args.masks, labels=args.labels, tracts=args.tracts,
-        tracts_list=args.tracts_list, seed=args.seed, data=args.data,
-        atlas=args.atlas, out_model=args.out_model, spatial=args.spatial,
-        hemisphere=args.hemisphere, epochs=args.epochs, verbose=args.verbose
+        masks=args.masks, labels=args.labels, structure=args.structure,
+        tracts=args.tracts, tracts_list=args.tracts_list, seed=args.seed,
+        data=args.data, atlas=args.atlas, out_model=args.out_model,
+        spatial=args.spatial, hemisphere=args.hemisphere, epochs=args.epochs,
+        verbose=args.verbose
     )
 
 
