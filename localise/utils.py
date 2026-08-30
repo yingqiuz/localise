@@ -16,11 +16,8 @@ def get_resources_path():
         # The application is frozen (packaged)
         return Path(sys._MEIPASS) / 'resources'
     else:
-        # The application is not frozen
-        # Get the directory of the current file (utils.py)
-        current_file = Path(__file__).resolve()
-        # Go up one level to the package root, then into 'resources'
-        return current_file.parent.parent / 'resources'
+        # resources ship inside the package as package data
+        return Path(__file__).resolve().parent / 'resources'
     
 
 def get_absolute_path(file_path):
@@ -120,6 +117,23 @@ def check_fsl_environment():
     if not fsl_dir:
         raise EnvironmentError("Environment variable FSLDIR does not exist. Please set up FSLDIR.")
     return fsl_dir
+
+
+def is_model_path(model):
+    """True if `model` refers to a model file (a custom trained model) rather
+    than the name of a shipped pretrained model."""
+    if model is None:
+        return False
+    s = str(model)
+    return s.endswith('.pth') or os.path.sep in s or Path(s).exists()
+
+
+def fsl_bin(tool):
+    """Absolute path of an FSL executable ($FSLDIR/bin/<tool>), so that FSL
+    commands work even when FSLDIR is set but not on PATH. Falls back to the
+    bare tool name if FSLDIR is not set."""
+    fsl_dir = os.environ.get('FSLDIR')
+    return str(Path(fsl_dir) / 'bin' / tool) if fsl_dir else tool
 
 
 def run_fsl_command(command, check=True):

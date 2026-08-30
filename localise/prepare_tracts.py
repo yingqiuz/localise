@@ -18,8 +18,43 @@ from localise.utils import (
     get_absolute_path,
     run_fsl_command,
     check_fsl_environment,
-    find_mask_file
+    check_fsl_sub_queues,
+    find_mask_file,
+    fsl_bin
 )
+
+
+# canonical target order: this is the feature order the localise models expect,
+# matching resources/data/*_default_target_list.txt (cortical parcels first,
+# then white-matter tracts, then - for vim - the SCPCT targets)
+CANONICAL_TARGET_ORDER = (
+    [str(k) for k in range(1, 76)]
+    + [f"ar_mask{i}" for i in range(1, 9)]
+    + [f"or_mask{i}" for i in range(1, 11)]
+    + [f"str_mask{i}" for i in range(1, 11)]
+    + [f"atr_mask{i}" for i in range(1, 9)]
+    + [f"fx_mask{i}" for i in range(1, 11)]
+    + [f"to_precentral_mask{i}" for i in range(1, 13)]
+    + [f"to_postcentral_mask{i}" for i in range(1, 13)]
+)
+SCPCT_TARGET_ORDER = [f"scpct_mask{i}" for i in range(1, 16)]
+
+
+def write_tracts_list(out_dir, structure=None):
+    """Write the tract-density file list, in canonical target order.
+
+    The resulting tracts_list.txt is picked up automatically by
+    `localise predict` and `localise train`, guaranteeing that the feature
+    order matches the one the models were trained with.
+    """
+    targets = CANONICAL_TARGET_ORDER + (
+        SCPCT_TARGET_ORDER if structure == 'vim' else []
+    )
+    tracts_list_file = Path(out_dir) / "tracts_list.txt"
+    with open(tracts_list_file, 'w') as f:
+        for target in targets:
+            f.write(f"seeds_to_{target}.nii.gz\n")
+    return str(tracts_list_file)
 
 
 def create_target_lists(masks_dir):
@@ -97,9 +132,9 @@ def create_brain_mask_if_needed(bpx_dir):
     output_mask = str(brain_mask_path)
     
     run_fsl_command([
-        'fslmaths', str(mean_samples), '-thr', '0', '-bin', output_mask
+        fsl_bin('fslmaths'), str(mean_samples), '-thr', '0', '-bin', output_mask
     ])
-    
+
     return output_mask + '.nii.gz'
 
 
@@ -176,7 +211,29 @@ def build_probtrackx_command(fsl_dir, prog, seed, samples, brain_mask, out_dir,
     return cmd
 
 
-def create_tracts(bpx, masks, out, hemisphere, structure=None, warp=None, ref=None, 
+def execute_probtrackx(cmd, log_dir, job_name, gpu=False, dependency=None):
+    """Run probtrackx directly, or submit it via fsl_sub when queues exist.
+
+    Returns the job id when submitted to a queue, None when run locally.
+    """
+    if check_fsl_sub_queues():
+        log_path = Path(log_dir) / 'logs'
+        log_path.mkdir(parents=True, exist_ok=True)
+        sub_cmd = ['fsl_sub', '-N', job_name, '-l', str(log_path)]
+        if gpu:
+            sub_cmd.extend(['--coprocessor', 'cuda'])
+        if dependency:
+            sub_cmd.extend(['-j', dependency])
+        result = run_fsl_command(sub_cmd + cmd)
+        job_id = result.stdout.strip()
+        print(f"Submitted {job_name} to the queue (job {job_id}).")
+        return job_id
+
+    run_fsl_command(cmd)
+    return None
+
+
+def create_tracts(bpx, masks, out, hemisphere, structure=None, warp=None, ref=None,
                  ptx_opts=None, gpu=False, seed=None):
     """
     Main function to create tracts using probabilistic tractography.
@@ -266,9 +323,11 @@ def create_tracts(bpx, masks, out, hemisphere, structure=None, warp=None, ref=No
         ptx_opts=ptx_opts
     )
     
-    # Run first tractography
-    run_fsl_command(cmd)
-    
+    # Run first tractography (submitted via fsl_sub when queues are available)
+    job_id = execute_probtrackx(
+        cmd, hemi_out_dir, f"ptx_{structure or 'seed'}_{hemisphere}", gpu=gpu
+    )
+
     # Create SCPCT target list and run second tractography - only needed for vim
     if structure == 'vim':
         print("\n=== Running tractography for SCPCT targets ===")
@@ -298,38 +357,44 @@ def create_tracts(bpx, masks, out, hemisphere, structure=None, warp=None, ref=No
             ptx_opts=ptx_opts
         )
         
-        # Run second tractography
-        run_fsl_command(cmd_scpct)
-    
+        # Run second tractography: both runs write into the same output
+        # directory (fdt_paths etc.), so on a queue the second job waits for
+        # the first via -j rather than running in parallel
+        execute_probtrackx(
+            cmd_scpct, hemi_out_dir, f"ptx_{structure}_scpct_{hemisphere}",
+            gpu=gpu, dependency=job_id
+        )
+
+    # record the feature order for train/predict to pick up
+    write_tracts_list(hemi_out_dir, structure=structure)
+
     print(f"\nTractography completed. Results saved to: {out_abs}")
 
 
-def parse_arguments():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Create tracts using probabilistic tractography",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent("""
-            Examples:
-                # Process both hemispheres
-                create_tracts --bpx subj001/dMRI.bedpostX --masks subj001/masks 
-                             --structure vim --out subj001/tracts
-                
-                # Process only left hemisphere
-                create_tracts --bpx subj001/dMRI.bedpostX --masks subj001/masks 
-                             --structure vim --out subj001/tracts --hemisphere left
-                
-                # Use GPU and transformations
-                create_tracts --bpx subj001/dMRI.bedpostX --masks subj001/masks 
-                             --structure vim --out subj001/tracts --gpu
-                             --warp ref2diff.mat diff2ref.mat --ref subj001/T1.nii.gz
-            
-            This creates tracts for the specified structure using fiber samples
-            estimated via BedpostX. The program will look for seed masks in the
-            appropriate hemisphere folders (masks/left/ and masks/right/).
-        """)
-    )
-    
+DESCRIPTION = "Create tracts using probabilistic tractography"
+EPILOG = textwrap.dedent("""
+    Examples:
+        # Process both hemispheres
+        localise prepare-tracts --bpx subj001/dMRI.bedpostX --masks subj001/masks
+                                --structure vim --out subj001/tracts
+
+        # Process only left hemisphere
+        localise prepare-tracts --bpx subj001/dMRI.bedpostX --masks subj001/masks
+                                --structure vim --out subj001/tracts --hemisphere left
+
+        # Use GPU and transformations
+        localise prepare-tracts --bpx subj001/dMRI.bedpostX --masks subj001/masks
+                                --structure vim --out subj001/tracts --gpu
+                                --warp ref2diff.mat diff2ref.mat --ref subj001/T1.nii.gz
+
+    This creates tracts for the specified structure using fiber samples
+    estimated via BedpostX. The program will look for seed masks in the
+    appropriate hemisphere folders (masks/left/ and masks/right/).
+""")
+
+
+def add_arguments(parser):
+    """Add prepare-tracts arguments to an argparse parser."""
     # Required arguments
     required = parser.add_argument_group('required arguments')
     required.add_argument(
@@ -374,10 +439,12 @@ def parse_arguments():
         '--gpu', action='store_true',
         help='Use GPU version of probtrackx2'
     )
-    
-    args = parser.parse_args()
 
-    # Set default seed based on structure if not provided
+    return parser
+
+
+def resolve_default_seed(args):
+    """Set the default seed based on the structure if not provided."""
     if not args.seed:
         if args.structure == 'vim':
             args.seed = 'tha.nii.gz'
@@ -387,32 +454,48 @@ def parse_arguments():
             raise ValueError("Please specify --structure if --seed is not specified.")
         else:
             raise ValueError(f"Default seed not defined for structure: {args.structure}")
-    
     return args
+
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description=DESCRIPTION,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=EPILOG
+    )
+    add_arguments(parser)
+    return resolve_default_seed(parser.parse_args())
+
+
+def run(args):
+    """Run tractography from parsed arguments (both hemispheres by default)."""
+    resolve_default_seed(args)
+    if not args.hemisphere:
+        hemispheres = ['left', 'right']
+    else:
+        hemispheres = [args.hemisphere]
+    for h in hemispheres:
+        create_tracts(
+            bpx=args.bpx,
+            masks=args.masks,
+            out=args.out,
+            hemisphere=h,
+            structure=args.structure,
+            warp=args.warp,
+            ref=args.ref,
+            ptx_opts=args.ptx_opts,
+            gpu=args.gpu,
+            seed=args.seed
+        )
 
 
 def main():
     """Main entry point."""
     args = parse_arguments()
-    
+
     try:
-        if not args.hemisphere:
-            hemispheres = ['left', 'right']
-        else:
-            hemispheres = [args.hemisphere]
-        for h in hemispheres:
-            create_tracts(
-                bpx=args.bpx,
-                masks=args.masks,
-                out=args.out,
-                hemisphere=h,
-                structure=args.structure,
-                warp=args.warp,
-                ref=args.ref,
-                ptx_opts=args.ptx_opts,
-                gpu=args.gpu,
-                seed=args.seed
-            )
+        run(args)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

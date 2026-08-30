@@ -1,8 +1,9 @@
 import pytest
 from localise.modes import RESOURCES_PATH
 from localise.modes import (
-    check_values, check_prediction_params, 
-    _handle_default_model, check_training_params
+    check_values, check_prediction_params,
+    _handle_default_model, check_training_params,
+    train_mode, predict_mode
 )
 from pathlib import Path
 
@@ -26,11 +27,11 @@ def test_check_prediction_params(tmp_path):
     tracts = tmp_path / 'tracts'
     structure = 'vim'
     out = tmp_path / 'out'
-    data_type = 'single32'
+    model_name = 'single32'
     hemisphere = 'left'
     params = check_prediction_params(
         masks=masks, structure=structure, tracts=tracts, 
-        out=out, data_type=data_type, hemisphere=hemisphere, 
+        out=out, model=model_name, hemisphere=hemisphere,
         spatial=True
     )
     assert params['masks'] == [tmp_path / 'masks' / hemisphere]
@@ -53,7 +54,7 @@ def test_check_prediction_params(tmp_path):
     out.write_text('sub1/out\nsub2/out')
     params = check_prediction_params(
         masks=masks, structure=structure, tracts=tracts, 
-        out=out, data_type=data_type, hemisphere=hemisphere, 
+        out=out, model=model_name, hemisphere=hemisphere,
         spatial=True
     )
     assert params['masks'] == [
@@ -66,17 +67,18 @@ def test_check_prediction_params(tmp_path):
         Path(f'sub1/out/{hemisphere}/probmap.nii.gz'), 
         Path(f'sub2/out/{hemisphere}/probmap.nii.gz')
     ]
-    assert params['model'] == (RESOURCES_PATH / 'models' / structure / data_type / 
+    assert params['model'] == (RESOURCES_PATH / 'models' / structure / model_name / 
                                hemisphere / 'spatial_model.pth')
     
     # other scenarios
     model = tmp_path / 'model.pth'
+    model.touch()
     seed = tmp_path / 'seeds.txt'
     seed.write_text('sub1/left/seeds.nii.gz\nsub2/left/seeds.nii.gz')
     tracts_list = tmp_path / 'tracts_list.txt'
     params = check_prediction_params(
         masks=masks, model=model, seed=seed, tracts=tracts, 
-        out=out, data_type=data_type, hemisphere=hemisphere, 
+        out=out, hemisphere=hemisphere,
         tracts_list=tracts_list, spatial=True
     )
     assert params['masks'] == [
@@ -98,8 +100,8 @@ def test_check_prediction_params(tmp_path):
     data.write_text('sub1/data.npy\nsub2/data.npy')
     params = check_prediction_params(
         masks=masks, data=data, model=model, seed=seed,
-        out=out, data_type=data_type, hemisphere=hemisphere, 
-        spatial=True, 
+        out=out, hemisphere=hemisphere,
+        spatial=True,
     )
     assert params['data'] == [Path('sub1/data.npy'), Path('sub2/data.npy')]
 
@@ -162,3 +164,195 @@ def test_check_training_params(tmp_path):
     assert params['hemisphere'] == 'right'
     assert params['out_model'] == tmp_path / 'out_model.pth'
     
+def test_train_and_predict_round_trip(tmp_path):
+    # train a small custom model on the bundled test subject, then use it
+    # in prediction mode: this exercises the full train_mode/predict_mode glue
+    sub = path_to_data / '100610'
+    seed = sub / 'roi' / 'left' / 'tha_small.nii.gz'
+    labels = sub / 'high-quality-labels' / 'left' / 'labels.nii.gz'
+    tracts = sub / 'streamlines'  # hemisphere is appended by the param layer
+    tracts_list = tmp_path / 'tracts_list.txt'
+    tracts_list.write_text('seeds_to_11101_1.nii.gz\nseeds_to_11102_1.nii.gz\n')
+    out_model = tmp_path / 'model.pth'
+
+    model = train_mode(masks=None, labels=str(labels), tracts=str(tracts),
+                       tracts_list=str(tracts_list), seed=str(seed),
+                       out_model=str(out_model), spatial=True,
+                       hemisphere='left', epochs=2, verbose=False)
+    assert out_model.exists()
+
+    out = tmp_path / 'out'
+    predictions = predict_mode(masks=None, seed=str(seed), tracts=str(tracts),
+                               tracts_list=str(tracts_list), out=str(out),
+                               model=str(out_model), spatial=True,
+                               hemisphere='left', verbose=False)
+    assert len(predictions) == 1
+    assert (out / 'left' / 'probmap.nii.gz').exists()
+
+
+def test_predict_mode_requires_hemisphere_with_explicit_paths(tmp_path):
+    # both-hemisphere mode (hemisphere=None) is only valid with the standard
+    # folder layout; explicit seed/data/model paths are hemisphere-specific
+    with pytest.raises(ValueError, match='hemisphere'):
+        predict_mode(masks=None, seed='seed.nii.gz', tracts='tracts',
+                     tracts_list='list.txt', out=str(tmp_path),
+                     model='model.pth', hemisphere=None, verbose=False)
+
+
+def test_train_mode_requires_hemisphere_with_tracts(tmp_path):
+    with pytest.raises(ValueError, match='hemisphere'):
+        train_mode(masks=None, labels='labels.nii.gz', tracts='tracts',
+                   tracts_list='list.txt', seed='seed.nii.gz',
+                   out_model=str(tmp_path / 'model.pth'),
+                   hemisphere=None, verbose=False)
+
+
+def test_check_prediction_params_detects_tracts_list(tmp_path):
+    # a tracts_list.txt generated by prepare-tracts next to the tract maps
+    # takes precedence over the shipped default list
+    masks = tmp_path / 'masks'
+    tracts = tmp_path / 'tracts'
+    (tracts / 'left').mkdir(parents=True)
+    detected = tracts / 'left' / 'tracts_list.txt'
+    detected.write_text('seeds_to_1.nii.gz\nseeds_to_2.nii.gz\n')
+
+    params = check_prediction_params(
+        masks=masks, structure='vim', tracts=tracts, out=tmp_path / 'out',
+        model='single32', hemisphere='left', spatial=True
+    )
+    assert params['tracts_list'] == detected
+
+
+def test_predict_mode_with_shipped_default_model(tmp_path):
+    # exercise the default-model path end to end: pre-saved features with the
+    # canonical 160 targets, the shipped vim 2mm spatial model, real output
+    import numpy as np
+    import nibabel as nib
+
+    seed = path_to_data / '100610' / 'roi' / 'left' / 'tha_small.nii.gz'
+    n_voxels = int((nib.load(str(seed)).get_fdata() > 0).sum())
+    rng = np.random.default_rng(0)
+    data = tmp_path / 'features.npy'
+    np.save(data, rng.random((160, n_voxels)).astype(np.float32))
+
+    out = tmp_path / 'out'
+    predictions = predict_mode(masks=None, seed=str(seed), data=str(data),
+                               structure='vim', model='2mm', spatial=True,
+                               out=str(out), hemisphere='left', verbose=False)
+
+    assert len(predictions) == 1
+    assert predictions[0].shape[0] == n_voxels
+    assert (out / 'left' / 'probmap.nii.gz').exists()
+
+
+def test_handle_default_model_missing(tmp_path):
+    # unknown data type: the error should list what is actually available
+    with pytest.raises(ValueError, match='2mm'):
+        _handle_default_model('vim', 'nonexistent', 'left', True, None)
+    # unshipped structure: the error should point at custom training
+    with pytest.raises(ValueError, match='train your own'):
+        _handle_default_model('lgn', 'single32', 'left', True, None)
+
+
+def test_check_training_params_new_behaviours(tmp_path):
+    (tmp_path / 'masks').mkdir()
+    tracts = tmp_path / 'tracts'
+    (tracts / 'left').mkdir(parents=True)
+    (tracts / 'left' / 'tracts_list.txt').write_text('seeds_to_1.nii.gz\n')
+
+    params = check_training_params(
+        masks=tmp_path / 'masks', structure='vim',
+        labels=tmp_path / 'labels.nii.gz', tracts=tracts,
+        atlas='default', out_model=tmp_path / 'm.pth', hemisphere='left'
+    )
+    # seed derived from masks/<hemi>/<structure seed>
+    assert params['seed'] == [tmp_path / 'masks' / 'left' / 'tha.nii.gz']
+    # default atlas resolved inside the masks folder
+    assert params['atlas'] == [tmp_path / 'masks' / 'left' / 'vim.nii.gz']
+    # tracts_list.txt auto-detected next to the tract maps
+    assert params['tracts_list'] == tracts / 'left' / 'tracts_list.txt'
+
+
+def test_check_training_params_broadcasts_atlas(tmp_path):
+    seed = tmp_path / 'seeds.txt'
+    seed.write_text('sub1/seed.nii.gz\nsub2/seed.nii.gz\nsub3/seed.nii.gz')
+    labels = tmp_path / 'labels.txt'
+    labels.write_text('sub1/l.nii.gz\nsub2/l.nii.gz\nsub3/l.nii.gz')
+    (tmp_path / 'data.txt').write_text('sub1/d.npy\nsub2/d.npy\nsub3/d.npy')
+
+    params = check_training_params(
+        seed=seed, labels=labels, data=tmp_path / 'data.txt',
+        atlas=tmp_path / 'group_atlas.nii.gz',
+        out_model=tmp_path / 'm.pth', hemisphere='left'
+    )
+    # one group-average atlas serves all three subjects
+    assert params['atlas'] == [tmp_path / 'group_atlas.nii.gz'] * 3
+
+    # but a wrong count (2 atlases, 3 subjects) is still an error
+    two = tmp_path / 'atlases.txt'
+    two.write_text('a1.nii.gz\na2.nii.gz')
+    with pytest.raises(ValueError, match='atlas'):
+        check_training_params(
+            seed=seed, labels=labels, data=tmp_path / 'data.txt',
+            atlas=two, out_model=tmp_path / 'm.pth', hemisphere='left'
+        )
+
+
+def test_predict_mode_default_atlas_via_cli_string(tmp_path):
+    # the CLI passes the literal 'default'; it must resolve inside the masks
+    # folder, not be treated as a path
+    masks = tmp_path / 'masks'
+    tracts = tmp_path / 'tracts'
+    params = check_prediction_params(
+        masks=masks, structure='vim', tracts=tracts, out=tmp_path / 'out',
+        model='2mm', hemisphere='left', spatial=True, atlas='default'
+    )
+    assert params['atlas'] == [masks / 'left' / 'vim.nii.gz']
+    # with-prior model variant selected
+    assert params['model'].name == 'spatial_model_with_prior.pth'
+
+
+def test_spatial_mismatch_is_caught(tmp_path):
+    # a non-spatial model must not be silently used for spatial prediction
+    import numpy as np
+    import nibabel as nib
+    import torch
+    from localise.forward import FlexibleClassifier
+    from localise.predict import apply_pretrained_model
+    from localise.load import load_features
+
+    nonspatial = FlexibleClassifier(torch.nn.Linear(4, 2), is_crf=False)
+    model_path = tmp_path / 'nonspatial.pth'
+    torch.save(nonspatial.state_dict(), model_path)
+
+    seed = path_to_data / '100610' / 'roi' / 'left' / 'tha_small.nii.gz'
+    n_voxels = int((nib.load(str(seed)).get_fdata() > 0).sum())
+    data = tmp_path / 'f.npy'
+    np.save(data, np.random.default_rng(0).random((2, n_voxels)).astype('float32'))
+    batch = load_features(seed=seed, data=data, power=[1, 2])
+
+    with pytest.raises(ValueError, match='no CRF weights'):
+        apply_pretrained_model([batch], str(model_path), spatial=True)
+
+
+def test_feature_count_mismatch_is_caught(tmp_path):
+    # a clear error when the data provides a different feature count
+    import numpy as np
+    import nibabel as nib
+    import torch
+    from localise.forward import FlexibleClassifier
+    from localise.predict import apply_pretrained_model
+    from localise.load import load_features
+
+    m = FlexibleClassifier(torch.nn.Linear(6, 2), is_crf=True, n_kernels=1)
+    model_path = tmp_path / 'm6.pth'
+    torch.save(m.state_dict(), model_path)
+
+    seed = path_to_data / '100610' / 'roi' / 'left' / 'tha_small.nii.gz'
+    n_voxels = int((nib.load(str(seed)).get_fdata() > 0).sum())
+    data = tmp_path / 'f.npy'
+    np.save(data, np.random.default_rng(0).random((2, n_voxels)).astype('float32'))
+    batch = load_features(seed=seed, data=data, power=[1, 2])  # 4 features
+
+    with pytest.raises(ValueError, match='expects 6 features'):
+        apply_pretrained_model([batch], str(model_path), spatial=True)

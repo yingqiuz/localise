@@ -16,11 +16,12 @@ import sys
 import textwrap
 from pathlib import Path
 from localise.utils import (
-    get_resources_path, 
-    get_absolute_path, 
-    run_fsl_command, 
-    check_fsl_sub_queues, 
-    check_fsl_environment
+    get_resources_path,
+    get_absolute_path,
+    run_fsl_command,
+    check_fsl_sub_queues,
+    check_fsl_environment,
+    fsl_bin
 )
 
 
@@ -217,18 +218,18 @@ def process_aparc_file(aparc_path, ref_path, out_dir):
         
         # Register to reference space
         run_fsl_command([
-            "flirt", "-in", str(output_path), "-ref", ref_path,
+            fsl_bin("flirt"), "-in", str(output_path), "-ref", ref_path,
             "-out", str(output_path), "-applyxfm", "-usesqform",
             "-interp", "nearestneighbour"
         ])
-        
+
         return str(output_path)
-    
+
     elif aparc_file.suffix in ['.nii', '.gz']:
         # Register NII file to reference space
         output_path = out_dir / "masks" / aparc_basename
         run_fsl_command([
-            "flirt", "-in", str(aparc_path), "-ref", ref_path,
+            fsl_bin("flirt"), "-in", str(aparc_path), "-ref", ref_path,
             "-out", str(output_path), "-applyxfm", "-usesqform",
             "-interp", "nearestneighbour"
         ])
@@ -241,15 +242,26 @@ def process_aparc_file(aparc_path, ref_path, out_dir):
         )
 
 
-def execute_commands(commands_file, job_name, log_dir, dependency_job=None):
-    """Execute FSL commands either through queue system or directly."""
+def execute_commands(commands_file, job_name, log_dir, dependency_job=None,
+                     as_array=True):
+    """Execute FSL commands either through queue system or directly.
+
+    With as_array=True the commands file is submitted as a task array (one
+    task per line, run in parallel) - only valid when the lines are
+    independent. Use as_array=False for command files whose lines must run
+    sequentially: they are submitted as a single job running the whole file.
+    """
     has_queues = check_fsl_sub_queues()
-    
+
     if has_queues:
-        cmd = ['fsl_sub', '-N', job_name, '-n', '-l', str(log_dir), '-t', commands_file]
+        cmd = ['fsl_sub', '-N', job_name, '-n', '-l', str(log_dir)]
         if dependency_job:
             cmd.extend(['-j', dependency_job])
-        
+        if as_array:
+            cmd.extend(['-t', commands_file])
+        else:
+            cmd.extend(['bash', commands_file])
+
         result = run_fsl_command(cmd)
         return result.stdout.strip()  # Return job ID
     else:
@@ -325,32 +337,33 @@ def create_masks(ref, warp, out, aparc, structure, brainmask=None):
     )
     
     if scpct_commands_file:
+        # the SCPCT commands form a sequential chain (applywarp -> fslmaths),
+        # so they must run as a single job, not a parallel task array
         execute_commands(
             scpct_commands_file,
             "create_masks_scpct",
             out_dir / structure / "logs",
-            dependency_job=job_id
+            dependency_job=job_id,
+            as_array=False
         )
     
     print(f"Mask creation completed. Output directory: {out_dir}")
 
 
-def parse_arguments():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Create anatomical masks in reference space for tractography",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent("""
-            Example usage:
-                create_masks --ref subj001/t1.nii.gz --out subj001
-                             --aparc subj001/aparc.a2009s+aseg.nii.gz
-                             --warp subj001/std2str_warp.nii.gz
-                             --structure vim
-            
-            This will create necessary masks for localising vim in the reference space (t1.nii.gz).
-        """)
-    )
-    
+DESCRIPTION = "Create anatomical masks in reference space for tractography"
+EPILOG = textwrap.dedent("""
+    Example usage:
+        localise prepare-masks --ref subj001/t1.nii.gz --out subj001
+                               --aparc subj001/aparc.a2009s+aseg.nii.gz
+                               --warp subj001/std2str_warp.nii.gz
+                               --structure vim
+
+    This will create necessary masks for localising vim in the reference space (t1.nii.gz).
+""")
+
+
+def add_arguments(parser):
+    """Add prepare-masks arguments to an argparse parser."""
     # Required arguments
     required = parser.add_argument_group('required arguments')
     required.add_argument(
@@ -379,22 +392,38 @@ def parse_arguments():
         '--brainmask',
         help='Path to binary brain mask in the reference space'
     )
-    
+
+    return parser
+
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description=DESCRIPTION,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=EPILOG
+    )
+    add_arguments(parser)
     return parser.parse_args()
 
 
+def run(args):
+    """Run mask preparation from parsed arguments."""
+    create_masks(
+        ref=args.ref,
+        warp=args.warp,
+        out=args.out,
+        aparc=args.aparc,
+        structure=args.structure,
+        brainmask=args.brainmask
+    )
+
+
 def main():
-    """Main entry point."""    
+    """Main entry point."""
     try:
         args = parse_arguments()
-        create_masks(
-            ref=args.ref,
-            warp=args.warp,
-            out=args.out,
-            aparc=args.aparc,
-            structure=args.structure,
-            brainmask=args.brainmask
-        )
+        run(args)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

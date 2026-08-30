@@ -145,3 +145,36 @@ class TestEdgeCases:
             assert len(cmd) > 0
         finally:
             Path(opts_file).unlink()
+
+class TestWriteTractsList:
+    """Test the canonical tract list written for train/predict."""
+
+    def test_write_tracts_list_vim(self, tmp_path):
+        from localise.prepare_tracts import write_tracts_list
+        from localise.utils import get_resources_path
+
+        path = write_tracts_list(tmp_path, structure='vim')
+        lines = Path(path).read_text().splitlines()
+
+        assert Path(path).name == 'tracts_list.txt'
+        assert len(lines) == 160
+        assert lines[0] == 'seeds_to_1.nii.gz'
+        assert lines[74] == 'seeds_to_75.nii.gz'
+        assert lines[75] == 'seeds_to_ar_mask1.nii.gz'
+        assert lines[-1] == 'seeds_to_scpct_mask15.nii.gz'
+
+        # the non-cortical entries must match the shipped default target list
+        # (the cortical ones differ only in naming: local 1..75 vs HCP 11101..)
+        default = (get_resources_path() / 'data' /
+                   'vim_default_target_list.txt').read_text().splitlines()
+        assert len(default) == len(lines)
+        assert lines[75:] == default[75:]
+
+    def test_write_tracts_list_non_vim(self, tmp_path):
+        from localise.prepare_tracts import write_tracts_list
+
+        path = write_tracts_list(tmp_path, structure='lgn')
+        lines = Path(path).read_text().splitlines()
+        # no SCPCT targets outside vim
+        assert len(lines) == 145
+        assert not any('scpct' in line for line in lines)

@@ -168,7 +168,7 @@ class TestAparcProcessing:
                     # Check the calls
                     calls = mock_run.call_args_list
                     assert '/usr/local/freesurfer/bin/mri_convert' in calls[0][0][0]
-                    assert 'flirt' in calls[1][0][0]
+                    assert any('flirt' in str(c) for c in calls[1][0][0])
                     
                     # Result should be the converted file
                     assert result.endswith('aparc.nii.gz')
@@ -193,7 +193,7 @@ class TestAparcProcessing:
                 
                 # Should have called flirt only
                 assert mock_run.call_count == 1
-                assert 'flirt' in mock_run.call_args[0][0]
+                assert any('flirt' in str(c) for c in mock_run.call_args[0][0])
                 
                 # Result should be the processed file
                 assert result.endswith('aparc.nii.gz')
